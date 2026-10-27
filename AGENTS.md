@@ -27,6 +27,11 @@ rules.
 `ansible-test` needs the checkout at `ansible_collections/git_cgallagher/orchestration/`. Run
 `ansible-test {sanity,units,integration} --docker default` from there. macOS has no `timeout` binary, so
 `runme.sh` only runs as-is inside the test container. The integration run takes about a minute.
+⚠️ Gotcha: devel's test container fails to start on GitHub's `ubuntu-latest` runners (`ansible-test` exits
+while remounting `/sys/fs/cgroup`; it failed the same way on rerun, 2026-10-27). CI therefore runs devel
+integration as a separate `integration-devel` job using `ansible-test integration --venv`, with no container.
+Try moving it back into the matrix once a devel run succeeds there. Released versions run fine in the container.
+2.18's `ansible-test` won't run on Python 3.14, so use a 3.11–3.13 venv for it locally.
 Timing tolerances in `runme.sh` are deliberately loose for noisy CI runners. If CI flakes, widen the
 tolerance; don't drop the assertion.
 

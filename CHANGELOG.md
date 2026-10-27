@@ -10,4 +10,6 @@
   times, covering the gap, overlap, no repeated delay, gap 0, jitter, task-level vars, handlers,
   `include_tasks` and bad values.
 - CI: `ansible-test` sanity/units/integration on ansible-core 2.18–2.21 and devel, plus a weekly run
-  against devel.
+  against devel. Devel integration runs with `--venv` (no container), because devel's test container can't
+  start on GitHub runners.
+- Collection namespace is `git_cgallagher`, which Galaxy creates automatically from the GitHub username.

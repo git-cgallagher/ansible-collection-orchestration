@@ -1,7 +1,7 @@
 # Offset set at the play level (templated), covering a plain task, a notified handler and an included task.
 - hosts: probe_hosts
   gather_facts: false
-  strategy: cgallagher.orchestration.time_offset
+  strategy: git_cgallagher.orchestration.time_offset
   vars:
     time_offset_seconds: "{{ play_gap }}"
     time_offset_jitter: "{{ play_jitter | default(0) }}"

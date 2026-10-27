@@ -1,7 +1,7 @@
 # No play-level offset: only the task that sets the variable is staggered.
 - hosts: probe_hosts
   gather_facts: false
-  strategy: cgallagher.orchestration.time_offset
+  strategy: git_cgallagher.orchestration.time_offset
   vars:
     probe: "{{ ansible_playbook_python }} {{ playbook_dir }}/probe.py {{ probe_log }} {{ inventory_hostname }}"
   tasks:

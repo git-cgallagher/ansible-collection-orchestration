@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Integration tests for cgallagher.orchestration.time_offset.
+# Integration tests for git_cgallagher.orchestration.time_offset.
 # Six local hosts record when each task really starts (probe.py); check_starts.py asserts on the spacing.
 # Every playbook runs under `timeout` because a host that is blocked but never released hangs instead of failing.
 set -eux

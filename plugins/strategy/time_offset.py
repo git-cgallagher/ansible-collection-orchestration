@@ -39,7 +39,7 @@ seealso:
 EXAMPLES = r"""
 # Offset every task in the play by at least 2 seconds between hosts, plus up to 1 second of jitter.
 - hosts: new_vms
-  strategy: cgallagher.orchestration.time_offset
+  strategy: git_cgallagher.orchestration.time_offset
   vars:
     time_offset_seconds: 2
     time_offset_jitter: 1
@@ -53,7 +53,7 @@ EXAMPLES = r"""
 
 # Offset only the task that collides on a shared target; everything else runs like free.
 - hosts: windows
-  strategy: cgallagher.orchestration.time_offset
+  strategy: git_cgallagher.orchestration.time_offset
   tasks:
     - name: Find closest domain controller
       ansible.windows.win_shell: nltest /dsgetdc:{{ ad_domain }}

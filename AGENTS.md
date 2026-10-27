@@ -1,4 +1,4 @@
-# AGENTS.md — cgallagher.orchestration
+# AGENTS.md — git_cgallagher.orchestration
 
 Ansible collection (public repo) holding strategy plugins. Read `~/Code/AGENTS.md` first for workspace-wide
 rules.
@@ -24,15 +24,21 @@ rules.
 - Templating: `TemplateEngine` on ≥2.19, `Templar` fallback on 2.18.
 
 ## Testing
-`ansible-test` needs the checkout at `ansible_collections/cgallagher/orchestration/`. Run
+`ansible-test` needs the checkout at `ansible_collections/git_cgallagher/orchestration/`. Run
 `ansible-test {sanity,units,integration} --docker default` from there. macOS has no `timeout` binary, so
 `runme.sh` only runs as-is inside the test container. The integration run takes about a minute.
 Timing tolerances in `runme.sh` are deliberately loose for noisy CI runners. If CI flakes, widen the
 tolerance; don't drop the assertion.
 
 ## Releasing
-Bump `version` in `galaxy.yml` and add a `CHANGELOG.md` entry. Not published to Galaxy yet (needs the
-owner's Galaxy account and namespace); install is `git+https`.
+Bump `version` in `galaxy.yml` and add a `CHANGELOG.md` entry. Not published to Galaxy yet; install is `git+https`.
+- Namespace is `git_cgallagher` on purpose. Galaxy creates a namespace automatically from the GitHub username
+  at first login, turning hyphens into underscores, so `git-cgallagher` becomes `git_cgallagher` with no
+  request needed. `cgallagher` and `appalachiancloud` were both considered and were free on Galaxy
+  (2026-10-27), but either needs a request on the Ansible forum. Changing the namespace later renames the
+  collection's full name and breaks existing `strategy:` lines, so treat it as a major version.
+- To publish: log in to galaxy.ansible.com with GitHub once, create an API token, then
+  `ansible-galaxy collection build` and `ansible-galaxy collection publish <tarball> --token ...`.
 
 ## Conventions
 - License is GPL-3.0-or-later, and must stay so: the plugin subclasses GPL code from ansible-core.

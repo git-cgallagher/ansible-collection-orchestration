@@ -2,7 +2,7 @@
 
 ## 1.0.0 — 2026-10-27
 
-- Initial release: `cgallagher.orchestration.time_offset` strategy. It works like `free`, but spaces each
+- Initial release: `git_cgallagher.orchestration.time_offset` strategy. It works like `free`, but spaces each
   task's start across hosts by `time_offset_seconds` (plus optional `time_offset_jitter`) without
   serializing the task. Originally proposed as ansible/ansible#80519 (strategy feature request, closed
   because core no longer accepts new plugins).

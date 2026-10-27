@@ -1,4 +1,4 @@
-# cgallagher.orchestration
+# git_cgallagher.orchestration
 
 Ansible strategy plugins that control *when* tasks start across hosts.
 
@@ -60,7 +60,7 @@ Set the strategy, then set the gap as an ordinary variable.
 - name: Build Windows VMs
   hosts: new_vms
   gather_facts: false
-  strategy: cgallagher.orchestration.time_offset
+  strategy: git_cgallagher.orchestration.time_offset
   vars:
     time_offset_seconds: 2    # minimum gap between two hosts starting the same task
     time_offset_jitter: 1     # plus 0–1 s of random delay, so hosts don't fall into a fixed rhythm
@@ -78,7 +78,7 @@ Set the strategy, then set the gap as an ordinary variable.
 ```yaml
 - name: Configure Windows servers
   hosts: windows
-  strategy: cgallagher.orchestration.time_offset
+  strategy: git_cgallagher.orchestration.time_offset
   tasks:
     - name: Install features
       ansible.windows.win_feature:
@@ -97,7 +97,7 @@ Set the strategy, then set the gap as an ordinary variable.
 ```ini
 # ansible.cfg
 [defaults]
-strategy = cgallagher.orchestration.time_offset
+strategy = git_cgallagher.orchestration.time_offset
 ```
 
 ```yaml
@@ -148,11 +148,11 @@ Nothing sleeps in the strategy loop, so a held host never slows down other hosts
 ## Development
 
 Tests use `ansible-test`, which needs the collection checked out at
-`ansible_collections/cgallagher/orchestration/`:
+`ansible_collections/git_cgallagher/orchestration/`:
 
 ```bash
 git clone https://github.com/git-cgallagher/ansible-collection-orchestration.git \
-  ansible_collections/cgallagher/orchestration
+  ansible_collections/git_cgallagher/orchestration
 ```
 
 Then, from that directory, with ansible-core installed and Docker running:

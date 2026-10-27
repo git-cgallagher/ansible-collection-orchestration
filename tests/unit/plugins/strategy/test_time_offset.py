@@ -2,7 +2,7 @@
 # GNU General Public License v3.0+ (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import annotations
 
-from ansible_collections.cgallagher.orchestration.plugins.strategy.time_offset import OffsetScheduler
+from ansible_collections.git_cgallagher.orchestration.plugins.strategy.time_offset import OffsetScheduler
 
 
 class FakeClock:

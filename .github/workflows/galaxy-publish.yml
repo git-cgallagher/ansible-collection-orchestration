@@ -1,0 +1,97 @@
+name: galaxy-publish
+
+# Keeps Ansible Galaxy in step with main. Every push to main checks whether Galaxy already has the
+# version in galaxy.yml; if not, it builds and publishes it, then tags the commit and creates a
+# GitHub release. Galaxy versions are immutable, so a change only reaches Galaxy when its PR also
+# bumps `version` in galaxy.yml. Merges that don't bump it are a no-op here.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: galaxy-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # The Galaxy token is an environment secret, so only this job, on main, can read it.
+    environment: galaxy
+    permissions:
+      contents: write  # tag + GitHub release after a successful publish
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: '3.13'
+
+      - name: Install ansible-core
+        run: pip install 'ansible-core==2.21.5'
+
+      - name: Read namespace, name and version from galaxy.yml
+        id: meta
+        run: |
+          python - >> "$GITHUB_OUTPUT" <<'EOF'
+          import yaml
+          with open('galaxy.yml') as f:
+              meta = yaml.safe_load(f)
+          for field in ('namespace', 'name', 'version'):
+              print(f'{field}={meta[field]}')
+          EOF
+
+      - name: Check whether Galaxy already has this version
+        id: check
+        env:
+          NAMESPACE: ${{ steps.meta.outputs.namespace }}
+          NAME: ${{ steps.meta.outputs.name }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          url="https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/index/${NAMESPACE}/${NAME}/versions/${VERSION}/"
+          status=$(curl -sS -o /dev/null -w '%{http_code}' "$url")
+          case "$status" in
+            200) echo "Galaxy already has ${NAMESPACE}.${NAME} ${VERSION}; nothing to publish."
+                 echo "needed=false" >> "$GITHUB_OUTPUT" ;;
+            404) echo "Galaxy doesn't have ${NAMESPACE}.${NAME} ${VERSION} yet."
+                 echo "needed=true" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "::error::Galaxy returned HTTP ${status} for ${url}"; exit 1 ;;
+          esac
+
+      - name: Build the collection
+        if: steps.check.outputs.needed == 'true'
+        run: ansible-galaxy collection build --output-path dist
+
+      - name: Publish to Galaxy
+        id: publish
+        if: steps.check.outputs.needed == 'true'
+        env:
+          GALAXY_API_KEY: ${{ secrets.GALAXY_API_KEY }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          if [ -z "${GALAXY_API_KEY}" ]; then
+            echo "::warning::GALAXY_API_KEY isn't set in the 'galaxy' environment, so ${VERSION} was not published. Add it, then re-run this workflow."
+            exit 0
+          fi
+          # waits for Galaxy's import to finish and fails if the import is rejected
+          ansible-galaxy collection publish dist/*.tar.gz --token "${GALAXY_API_KEY}"
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+      - name: Tag and create a GitHub release
+        if: steps.publish.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAMESPACE: ${{ steps.meta.outputs.namespace }}
+          NAME: ${{ steps.meta.outputs.name }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          gh release create "v${VERSION}" dist/*.tar.gz \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "v${VERSION}" \
+            --notes "Published to Ansible Galaxy: https://galaxy.ansible.com/ui/repo/published/${NAMESPACE}/${NAME}/?version=${VERSION} — see CHANGELOG.md for what changed."

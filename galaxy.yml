@@ -15,6 +15,8 @@ repository: https://github.com/git-cgallagher/ansible-collection-orchestration
 documentation: https://github.com/git-cgallagher/ansible-collection-orchestration#readme
 issues: https://github.com/git-cgallagher/ansible-collection-orchestration/issues
 build_ignore:
+  - .gitignore
+  - AGENTS.md
   - .github
   - tests/output
   - '*.tar.gz'

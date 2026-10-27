@@ -32,26 +32,39 @@ rules.
 `ansible-test {sanity,units,integration} --docker default` from there. macOS has no `timeout` binary, so
 `runme.sh` only runs as-is inside the test container. The integration run takes about a minute.
 ⚠️ Gotcha: devel's test container fails to start on GitHub's `ubuntu-latest` runners (`ansible-test` exits
-while remounting `/sys/fs/cgroup`; it failed the same way on rerun, 2026-10-27). CI therefore runs devel
-integration as a separate `integration-devel` job using `ansible-test integration --venv`, with no container.
-Try moving it back into the matrix once a devel run succeeds there. Released versions run fine in the container.
-Timing tolerances in `runme.sh` are deliberately loose for noisy CI runners. If CI flakes, widen the
-tolerance; don't drop the assertion.
+while remounting `/sys/fs/cgroup`). It hit integration first, then units too (2026-10-27), and retrying doesn't
+help. CI therefore runs devel units and integration in the `devel-venv` job with `ansible-test --venv`, no
+container. Devel sanity still uses the container (it needs the pinned linters) and passes for now; if it starts
+failing the same way, that's the same cause. Released versions run fine in the container.
+⚠️ Gotcha: `probe.py` timestamps a task when its Python process starts on the host, not when Ansible launches
+it (the moment the plugin actually spaces). On a busy runner that adds up to ~0.4s of variation, which once
+failed a 0.85s floor with a 0.776s gap, on devel, 2026-10-27. All 1s-gap checks now share `MIN_GAP=0.7` in
+`runme.sh`. If CI flakes, widen the tolerance; don't drop the assertion.
 
 ## Releasing
-Bump `version` in `galaxy.yml` and add a `CHANGELOG.md` entry. Not published to Galaxy yet; install is `git+https`.
+**Galaxy follows `main` automatically** (`.github/workflows/galaxy-publish.yml`). On every push to `main` it asks
+Galaxy whether the `galaxy.yml` version exists. If it doesn't, the workflow builds, publishes (and waits for Galaxy's
+import), then tags `v<version>` and creates a GitHub release with the tarball. Galaxy versions are immutable,
+so **to release, bump `version` in `galaxy.yml` and add a `CHANGELOG.md` entry in the same PR**. Merges that don't
+bump it publish nothing.
+- The token is the `GALAXY_API_KEY` secret in the **`galaxy` environment**, which only `main` can deploy to.
+  It isn't a repo secret, so PR workflows can never read it. Until it's set, the workflow skips publishing with a
+  warning and stays green. After adding it, re-run the workflow (Actions → galaxy-publish → Run workflow).
+- `ansible-core` is pinned in that workflow, and Dependabot doesn't update pip pins inside workflow steps, so bump
+  it by hand when the CI matrix moves on.
 - Namespace is `git_cgallagher` on purpose. Galaxy creates a namespace automatically from the GitHub username
   at first login, turning hyphens into underscores, so `git-cgallagher` becomes `git_cgallagher` with no
   request needed. `cgallagher` and `appalachiancloud` were both considered and were free on Galaxy
   (2026-10-27), but either needs a request on the Ansible forum. Changing the namespace later renames the
   collection's full name and breaks existing `strategy:` lines, so treat it as a major version.
-- To publish: log in to galaxy.ansible.com with GitHub once, create an API token, then
-  `ansible-galaxy collection build` and `ansible-galaxy collection publish <tarball> --token ...`.
+- One-time setup by the owner: log in to galaxy.ansible.com with GitHub (this creates `git_cgallagher`), create
+  an API token, then run `gh secret set GALAXY_API_KEY --env galaxy --repo git-cgallagher/ansible-collection-orchestration`.
+  It prompts for the value, so the token never reaches shell history or chat.
 
 ## Repo security (public repo)
 - `main` is protected by the ruleset **"main protection"**: changes go through a PR, force-push and deletion are
   blocked, there's no bypass, and the 9 `stable-*` checks (`sanity|units|integration (stable-2.19|2.20|2.21)`)
-  are required. Devel checks (`* (devel)`, `integration (devel, venv)`) are **not** required: a red devel
+  are required. Devel checks (`sanity (devel)`, `units (devel, venv)`, `integration (devel, venv)`) are **not** required: a red devel
   check is an early warning about upstream core, not a merge blocker. When the supported versions change,
   update the matrix, `meta/runtime.yml` **and** the ruleset's required checks together, or PRs block on
   checks that no longer run.

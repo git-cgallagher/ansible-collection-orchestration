@@ -48,7 +48,7 @@ collections:
     version: main
 ```
 
-Requires ansible-core 2.18 or later.
+Requires ansible-core 2.19 or later.
 
 ## Usage
 
@@ -179,7 +179,7 @@ The integration target runs playbooks against six local hosts. Each host records
 - task-level variables and jitter work;
 - bad values fail with a clear message.
 
-CI runs all three test types against ansible-core 2.18, 2.19, 2.20, 2.21 and devel.
+CI runs all three test types against ansible-core 2.19, 2.20, 2.21 and devel.
 
 ## License
 

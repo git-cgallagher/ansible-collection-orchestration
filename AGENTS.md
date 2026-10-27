@@ -15,13 +15,13 @@ rules.
 ## How the plugin hooks into core (read before changing it)
 - It does **not** copy `free.run()`. It overrides `_queue_task` (to hold a task until its start slot) and
   `_process_pending_results` (which `free` calls on every pass, to release held tasks). Those two
-  signatures have stayed the same from 2.18 through devel.
+  signatures have stayed the same from 2.18 through devel. The minimum is 2.19 (2.18 was dropped near its EOL).
 - A held host **must** be marked in `_blocked_hosts`. `free` has already advanced the host past the task
   and would otherwise hand it the next one. On ≤2.21, `free` sets the flag before `_queue_task`; on devel
   (ansible/ansible commit `0e69d86c0`, 2026-07-01), base `_queue_task` sets it. The plugin sets it
   itself, so it works either way.
 - Never `sleep` in these hooks. One loop drives every host.
-- Templating: `TemplateEngine` on ≥2.19, `Templar` fallback on 2.18.
+- Templating uses `TemplateEngine`, the engine `free` itself uses since 2.19. It's a private import, so watch it on devel.
 
 ## Testing
 `ansible-test` needs the checkout at `ansible_collections/git_cgallagher/orchestration/`. Run
@@ -31,7 +31,6 @@ rules.
 while remounting `/sys/fs/cgroup`; it failed the same way on rerun, 2026-10-27). CI therefore runs devel
 integration as a separate `integration-devel` job using `ansible-test integration --venv`, with no container.
 Try moving it back into the matrix once a devel run succeeds there. Released versions run fine in the container.
-2.18's `ansible-test` won't run on Python 3.14, so use a 3.11–3.13 venv for it locally.
 Timing tolerances in `runme.sh` are deliberately loose for noisy CI runners. If CI flakes, widen the
 tolerance; don't drop the assertion.
 

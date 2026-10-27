@@ -21,7 +21,7 @@ description:
   - "C(time_offset_jitter) - extra random delay, from 0 up to this many seconds, added to each gap so hosts do not
     fall into a fixed rhythm against a shared backend."
 author: Chris Gallagher (@git-cgallagher)
-version_added: 1.0.0
+version_added: 0.1.0
 notes:
   - Starts are spaced per task, identified the same way C(throttle) identifies a task. Tasks loaded by
     C(include_tasks) with host-specific file names count as different tasks and are not spaced against each other.
@@ -67,14 +67,10 @@ import itertools
 import random
 import time
 
+from ansible._internal._templating._engine import TemplateEngine
 from ansible.errors import AnsibleError
 from ansible.plugins.strategy.free import StrategyModule as FreeStrategyModule
 from ansible.utils.display import Display
-
-try:  # ansible-core >= 2.19
-    from ansible._internal._templating._engine import TemplateEngine as _Templar
-except ImportError:  # ansible-core 2.18
-    from ansible.template import Templar as _Templar
 
 display = Display()
 
@@ -147,7 +143,7 @@ class StrategyModule(FreeStrategyModule):
         if not any(raw.values()):
             return 0.0, 0.0
 
-        templar = _Templar(loader=self._loader, variables=task_vars)
+        templar = TemplateEngine(loader=self._loader, variables=task_vars)
         values = []
         for name, value in raw.items():
             try:

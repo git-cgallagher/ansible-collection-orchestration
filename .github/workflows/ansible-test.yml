@@ -24,7 +24,6 @@ jobs:
       matrix:
         # Keep in step with requires_ansible in meta/runtime.yml.
         ansible-core-version:
-          - stable-2.18
           - stable-2.19
           - stable-2.20
           - stable-2.21

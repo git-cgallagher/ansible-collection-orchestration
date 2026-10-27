@@ -1,0 +1,40 @@
+name: ansible-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # The plugin hooks into ansible-core strategy internals, so run weekly against devel to catch
+  # upstream changes before they reach a release.
+  schedule:
+    - cron: '0 13 * * 2'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.testing-type }} (${{ matrix.ansible-core-version }})
+    runs-on: ubuntu-latest
+    # devel is an early warning, not a merge gate
+    continue-on-error: ${{ matrix.ansible-core-version == 'devel' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep in step with requires_ansible in meta/runtime.yml.
+        ansible-core-version:
+          - stable-2.18
+          - stable-2.19
+          - stable-2.20
+          - stable-2.21
+          - devel
+        testing-type:
+          - sanity
+          - units
+          - integration
+    steps:
+      - uses: ansible-community/ansible-test-gh-action@release/v1
+        with:
+          ansible-core-version: ${{ matrix.ansible-core-version }}
+          testing-type: ${{ matrix.testing-type }}

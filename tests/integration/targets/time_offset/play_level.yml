@@ -1,0 +1,25 @@
+# Offset set at the play level (templated), covering a plain task, a notified handler and an included task.
+- hosts: probe_hosts
+  gather_facts: false
+  strategy: cgallagher.orchestration.time_offset
+  vars:
+    time_offset_seconds: "{{ play_gap }}"
+    time_offset_jitter: "{{ play_jitter | default(0) }}"
+    probe: "{{ ansible_playbook_python }} {{ playbook_dir }}/probe.py {{ probe_log }} {{ inventory_hostname }}"
+  tasks:
+    - name: First task, held open so hosts overlap
+      ansible.builtin.command: "{{ probe }} first {{ hold }}"
+      changed_when: true
+      notify: Probe handler
+
+    - name: Second task
+      ansible.builtin.command: "{{ probe }} second 0"
+      changed_when: false
+
+    - name: Included task
+      ansible.builtin.include_tasks: included.yml
+
+  handlers:
+    - name: Probe handler
+      ansible.builtin.command: "{{ probe }} handler 0"
+      changed_when: false

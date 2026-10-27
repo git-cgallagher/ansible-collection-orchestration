@@ -1,0 +1,3 @@
+- name: Task from include_tasks
+  ansible.builtin.command: "{{ probe }} included 0"
+  changed_when: false

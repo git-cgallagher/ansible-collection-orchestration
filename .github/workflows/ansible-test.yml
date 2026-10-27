@@ -1,0 +1,58 @@
+name: ansible-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.testing-type }} (${{ matrix.ansible-core-version }})
+    runs-on: ubuntu-latest
+    # devel is an early warning, not a merge gate
+    continue-on-error: ${{ matrix.ansible-core-version == 'devel' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep in step with requires_ansible in meta/runtime.yml.
+        ansible-core-version:
+          - stable-2.19
+          - stable-2.20
+          - stable-2.21
+          - devel
+        testing-type:
+          - sanity
+          - units
+          - integration
+        exclude:
+          # devel's test container can't start on GitHub runners (ansible-test fails remounting
+          # /sys/fs/cgroup), so devel integration runs without a container in integration-devel below.
+          - ansible-core-version: devel
+            testing-type: integration
+    steps:
+      - uses: ansible-community/ansible-test-gh-action@6ded727edb598e670ac056a8e680ca4050bac0a3  # v1.18.0
+        with:
+          ansible-core-version: ${{ matrix.ansible-core-version }}
+          testing-type: ${{ matrix.testing-type }}
+
+  integration-devel:
+    name: integration (devel, venv)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          path: ansible_collections/git_cgallagher/orchestration
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: '3.14'
+      - name: Install ansible-core devel
+        run: pip install https://github.com/ansible/ansible/archive/devel.tar.gz
+      - name: Run integration tests
+        working-directory: ansible_collections/git_cgallagher/orchestration
+        run: ansible-test integration --venv --python 3.14 --color -v

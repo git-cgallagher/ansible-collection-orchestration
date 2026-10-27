@@ -1,0 +1,20 @@
+namespace: git_cgallagher
+name: orchestration
+version: 0.1.0
+readme: README.md
+authors:
+  - Chris Gallagher (@git-cgallagher)
+description: Strategy plugins that control when tasks start across hosts, starting with time_offset.
+license:
+  - GPL-3.0-or-later
+tags:
+  - strategy
+  - orchestration
+  - scheduling
+repository: https://github.com/git-cgallagher/ansible-collection-orchestration
+documentation: https://github.com/git-cgallagher/ansible-collection-orchestration#readme
+issues: https://github.com/git-cgallagher/ansible-collection-orchestration/issues
+build_ignore:
+  - .github
+  - tests/output
+  - '*.tar.gz'

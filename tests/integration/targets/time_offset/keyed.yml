@@ -1,0 +1,21 @@
+# time_offset_key: two DIFFERENT tasks that share a key are spaced against each other across all hosts.
+# key_mode=shared: one queue for everything; split: odd and even hosts get separate queues; none: no key.
+- hosts: probe_hosts
+  gather_facts: false
+  strategy: git_cgallagher.orchestration.time_offset
+  vars:
+    time_offset_seconds: 1
+    queue: >-
+      {{ 'shared' if key_mode == 'shared'
+         else ('q' ~ (inventory_hostname[-1] | int % 2)) if key_mode == 'split'
+         else 'none' }}
+    time_offset_key: "{{ '' if key_mode == 'none' else queue }}"
+    probe: "{{ ansible_playbook_python }} {{ playbook_dir }}/probe.py {{ probe_log }} {{ inventory_hostname }}"
+  tasks:
+    - name: Task A
+      ansible.builtin.command: "{{ probe }} {{ queue }} 0"
+      changed_when: false
+
+    - name: Task B, a different task hitting the same target
+      ansible.builtin.command: "{{ probe }} {{ queue }} 0"
+      changed_when: false

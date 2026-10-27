@@ -1,0 +1,5 @@
+tests/output/
+*.tar.gz
+__pycache__/
+*.pyc
+.venv/

@@ -7,11 +7,11 @@ import sys
 
 
 def load(path):
-    starts = collections.defaultdict(dict)
+    starts = collections.defaultdict(list)
     with open(path) as f:
         for line in f:
-            label, host, when = line.split()
-            starts[label][host] = float(when)
+            label, dummy, when = line.split()
+            starts[label].append(float(when))
     return starts
 
 
@@ -25,12 +25,14 @@ def main():
     parser.add_argument('--max-span', type=float, help='largest allowed time from first to last start')
     parser.add_argument('--overlaps', type=float, metavar='HOLD',
                         help='the second host must start before the first host finished a task held open HOLD seconds')
+    parser.add_argument('--expect-collision', type=float, metavar='SECONDS',
+                        help='the smallest gap must be below SECONDS (proves the starts were NOT spaced)')
     parser.add_argument('--not-delayed-after', nargs=2, metavar=('LABEL', 'SECONDS'),
                         help='the last start must be within SECONDS of the last start of LABEL')
     args = parser.parse_args()
 
     all_starts = load(args.log)
-    starts = sorted(all_starts[args.label].values())
+    starts = sorted(all_starts[args.label])
     gaps = [b - a for a, b in zip(starts, starts[1:])]
     span = starts[-1] - starts[0] if starts else 0.0
     print('%s: %d starts, span %.3fs, gaps %s' % (args.label, len(starts), span, ', '.join('%.3f' % g for g in gaps)))
@@ -46,9 +48,12 @@ def main():
         failures.append('span %.3fs is above %.3fs' % (span, args.max_span))
     if args.overlaps is not None and len(starts) > 1 and starts[1] >= starts[0] + args.overlaps:
         failures.append('second host did not start until the first finished: the task ran serially')
+    if args.expect_collision is not None and gaps and min(gaps) >= args.expect_collision:
+        failures.append('smallest gap %.3fs is not below %.3fs: starts were spaced when they should not be'
+                        % (min(gaps), args.expect_collision))
     if args.not_delayed_after:
         label, seconds = args.not_delayed_after[0], float(args.not_delayed_after[1])
-        previous_last = max(all_starts[label].values())
+        previous_last = max(all_starts[label])
         if starts[-1] - previous_last > seconds:
             failures.append('last start is %.3fs after the last %s start, allowed %.3fs'
                             % (starts[-1] - previous_last, label, seconds))

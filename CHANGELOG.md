@@ -6,9 +6,11 @@
   task's start across hosts by `time_offset_seconds` (plus optional `time_offset_jitter`) without
   serializing the task. Originally proposed as ansible/ansible#80519 (strategy feature request, closed
   because core no longer accepts new plugins).
+- `time_offset_key`: tasks with the same key share one queue of start slots, so the gap holds between
+  different tasks that hit the same target (for example `"{{ mgmt_server }}"`). It's templated per host.
 - Tests: unit tests for the start-slot scheduler; an integration target that measures real per-host start
   times, covering the gap, overlap, no repeated delay, gap 0, jitter, task-level vars, handlers,
-  `include_tasks`, `serial` batches and bad values.
+  `include_tasks`, `serial` batches, shared and per-host keys (with a no-key control case) and bad values.
 - CI: `ansible-test` sanity/units/integration on ansible-core 2.19–2.21 and devel. Devel integration runs with `--venv` (no container), because devel's test container can't
   start on GitHub runners.
 - Security: actions pinned to commit SHAs (Dependabot keeps them current), `SECURITY.md` with private

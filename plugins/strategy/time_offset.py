@@ -21,12 +21,20 @@ description:
   - "C(time_offset_seconds) - minimum gap, in seconds (fractions allowed), between two hosts starting the same task."
   - "C(time_offset_jitter) - extra random delay, from 0 up to this many seconds, added to each gap so hosts do not
     fall into a fixed rhythm against a shared backend."
+  - "C(time_offset_key) - what to space starts against. By default each task has its own queue of start slots. Tasks
+    with the same key share one queue instead, so the gap holds between any two of them on any hosts, even if they
+    are different tasks. Use it when several tasks hit the same target, for example
+    C(time_offset_key: \"{{ mgmt_server }}\"). The key is templated per host, so hosts that resolve it to different
+    values get separate queues. It does nothing unless C(time_offset_seconds) or C(time_offset_jitter) is set."
 author: Chris Gallagher (@git-cgallagher)
 version_added: 0.1.0
 notes:
-  - Starts are spaced per task, identified the same way C(throttle) identifies a task. Tasks loaded by
+  - Without C(time_offset_key), starts are spaced per task, identified the same way C(throttle) identifies a task. Tasks loaded by
     C(include_tasks) with host-specific file names count as different tasks and are not spaced against each other.
   - A task with C(loop) is spaced per host, not per loop item.
+  - A task skipped by C(when) is still held for its start slot, because the condition is only evaluated once the
+    task runs. Under a shared C(time_offset_key) that slot also delays the other tasks with the same key, so set
+    the key on the tasks that actually hit the shared target rather than on a whole play full of conditional tasks.
   - Meta tasks run inside the strategy rather than on a worker, so they are not spaced.
   - The C(v2_playbook_on_task_start) callback (the TASK banner) fires when a host's task is scheduled; the
     C(v2_runner_on_start) callback fires when it actually starts.
@@ -62,6 +70,22 @@ EXAMPLES = r"""
       delegate_to: "{{ mgmt_server }}"
       vars:
         time_offset_seconds: 3
+
+# Space every task that talks to the management server against each other, not just repeats of one task.
+- hosts: windows
+  strategy: git_cgallagher.orchestration.time_offset
+  tasks:
+    - name: Find and join the domain via the management server
+      vars:
+        time_offset_seconds: 3
+        time_offset_key: "{{ mgmt_server }}"
+      delegate_to: "{{ mgmt_server }}"
+      block:
+        - name: Find closest domain controller
+          ansible.windows.win_shell: nltest /dsgetdc:{{ ad_domain }}
+        - name: Pre-stage the computer account
+          microsoft.ad.computer:
+            name: "{{ inventory_hostname_short }}"
 """
 
 import heapq
@@ -78,6 +102,7 @@ display = Display()
 
 GAP_VAR = 'time_offset_seconds'
 JITTER_VAR = 'time_offset_jitter'
+KEY_VAR = 'time_offset_key'
 
 
 class OffsetScheduler:
@@ -92,7 +117,7 @@ class OffsetScheduler:
         return self._clock()
 
     def reserve(self, key, gap, jitter=0.0):
-        """Return the earliest start time for the next host running task ``key``, and claim it."""
+        """Return the earliest start time for the next start in queue ``key``, and claim it."""
         now = self._clock()
         last = self._last_start.get(key)
         if last is None:
@@ -116,11 +141,11 @@ class StrategyModule(FreeStrategyModule):
         self._deferred_seq = itertools.count()
 
     def _queue_task(self, host, task, task_vars, play_context):
-        gap, jitter = self._get_offset_settings(task, task_vars)
+        gap, jitter, key = self._get_offset_settings(task, task_vars)
         if gap == 0 and jitter == 0:
             return super(StrategyModule, self)._queue_task(host, task, task_vars, play_context)
 
-        start = self._offset_scheduler.reserve(task._uuid, gap, jitter)
+        start = self._offset_scheduler.reserve(key, gap, jitter)
         delay = start - self._offset_scheduler.now()
         if delay <= 0:
             return super(StrategyModule, self)._queue_task(host, task, task_vars, play_context)
@@ -144,9 +169,10 @@ class StrategyModule(FreeStrategyModule):
             super(StrategyModule, self)._queue_task(host, task, task_vars, play_context)
 
     def _get_offset_settings(self, task, task_vars):
+        """Return (gap, jitter, queue key) for this task on this host."""
         raw = dict((name, task_vars.get(name, 0)) for name in (GAP_VAR, JITTER_VAR))
         if not any(raw.values()):
-            return 0.0, 0.0
+            return 0.0, 0.0, None
 
         templar = TemplateEngine(loader=self._loader, variables=task_vars)
         values = []
@@ -158,4 +184,13 @@ class StrategyModule(FreeStrategyModule):
             if value < 0:
                 raise AnsibleError("'%s' must not be negative, got %r." % (name, value))
             values.append(value)
-        return values[0], values[1]
+
+        # tag the two kinds of key so a user-chosen key can never collide with a task's uuid
+        key = templar.template(task_vars.get(KEY_VAR, None))
+        if key is None or key == '':
+            key = ('task', task._uuid)
+        elif isinstance(key, (str, int, float, bool)):
+            key = ('key', str(key))
+        else:
+            raise AnsibleError("'%s' must be a string, got %r." % (KEY_VAR, key))
+        return values[0], values[1], key

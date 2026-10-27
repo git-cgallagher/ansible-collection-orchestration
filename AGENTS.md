@@ -5,7 +5,8 @@ rules.
 
 ## Layout
 - `plugins/strategy/time_offset.py` — the only plugin. `OffsetScheduler` (pure, unit-tested) hands out start
-  slots; `StrategyModule` subclasses ansible-core's `free` strategy.
+  slots per queue key. The key is `('task', task._uuid)` by default or `('key', <time_offset_key>)`; the tags
+  keep a user key from colliding with a uuid. `StrategyModule` subclasses ansible-core's `free` strategy.
 - `tests/unit/` — scheduler tests with a fake clock.
 - `tests/integration/targets/time_offset/` — `runme.sh` drives playbooks against six `connection: local`
   hosts; `probe.py` logs real start times and `check_starts.py` asserts on them.

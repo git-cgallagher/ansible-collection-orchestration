@@ -64,3 +64,28 @@ for batch in 3 1; do
     run serial.yml -e probe_log="${log}" -e batch="${batch}"
     check "${log}" batched --count "${HOSTS}" --min-gap 0.8 --max-gap 1.9
 done
+
+# 8. time_offset_key: two different tasks share one queue of start slots.
+#    Control first: without a key, a host starts task B right after its own task A, while the next host is still
+#    waiting a full gap for A, so A and B starts collide.
+log="${log_dir}/nokey.log"; rm -f "${log}"
+run keyed.yml -e probe_log="${log}" -e key_mode=none
+check "${log}" none --count 12 --expect-collision 0.5
+#    Shared key: all 12 starts (6 hosts x 2 tasks) are spaced, so the span is about 11 gaps.
+log="${log_dir}/sharedkey.log"; rm -f "${log}"
+run keyed.yml -e probe_log="${log}" -e key_mode=shared
+check "${log}" shared --count 12 --min-gap 0.8 --max-gap 1.9
+#    Key templated per host: odd and even hosts resolve to different keys and get independent queues, each 6 starts
+#    spaced (span about 5 gaps, not 11).
+log="${log_dir}/splitkey.log"; rm -f "${log}"
+run keyed.yml -e probe_log="${log}" -e key_mode=split
+check "${log}" q0 --count 6 --min-gap 0.8 --max-span 7.5
+check "${log}" q1 --count 6 --min-gap 0.8 --max-span 7.5
+
+# 9. A key that isn't a string fails the play with a clear message.
+if run keyed.yml -e probe_log="${log}" -e key_mode=shared -e '{"time_offset_key": [1, 2]}' > "${log_dir}/badkey.out" 2>&1; then
+    echo "expected the play to fail for a list time_offset_key"
+    exit 1
+fi
+grep "'time_offset_key' must be a string" "${log_dir}/badkey.out"
+

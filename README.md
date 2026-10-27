@@ -98,6 +98,39 @@ Set the strategy, then set the gap as an ordinary variable.
         time_offset_seconds: 3
 ```
 
+### Space everything that hits a shared target
+
+Without a key, the gap applies between hosts running the *same* task. Two *different* tasks that call the
+same server can still start at the same moment: host 1 starts "Pre-stage the computer account" just as
+host 2 starts "Find closest domain controller", and `mgmt01` gets both at once. Give those tasks a shared
+`time_offset_key` and they draw start slots from one queue:
+
+```yaml
+- name: Join Windows servers to the domain
+  hosts: windows
+  strategy: git_cgallagher.orchestration.time_offset
+  tasks:
+    - name: Everything that goes through the management server
+      vars:
+        time_offset_seconds: 3
+        time_offset_key: "{{ mgmt_server }}"
+      delegate_to: "{{ mgmt_server }}"
+      block:
+        - name: Find closest domain controller
+          ansible.windows.win_shell: nltest /dsgetdc:{{ ad_domain }}
+
+        - name: Pre-stage the computer account
+          microsoft.ad.computer:
+            name: "{{ inventory_hostname_short }}"
+```
+
+The key is templated per host. If different hosts use different management servers, each server gets its
+own queue, and hosts going to `mgmt01` don't wait on hosts going to `mgmt02`. The gap also applies to one
+host running two keyed tasks back to back, since that's still two hits on the same target.
+
+Set the key on the tasks (or block) that actually touch the shared target. A task skipped by `when:` still
+takes its start slot, so a play-wide key over many conditional tasks would add delays that buy nothing.
+
 ### Make it the default
 
 ```ini
@@ -117,6 +150,7 @@ time_offset_seconds: 2
 |---|---|---|
 | `time_offset_seconds` | `0` | Minimum gap, in seconds, between two hosts starting the same task. Fractions are allowed. |
 | `time_offset_jitter` | `0` | Extra random delay, from 0 up to this many seconds, added to each gap. |
+| `time_offset_key` | the task | What to space starts against. Tasks with the same key share one queue of start slots, so the gap holds between *any* of them on *any* hosts. Templated per host. |
 
 These are normal variables, so variable precedence applies: a task-level value overrides a play-level
 one, and either can be set per group or host or templated (`"{{ base_gap * 2 }}"`). A non-numeric or
@@ -139,9 +173,12 @@ Nothing sleeps in the strategy loop, so a held host never slows down other hosts
 
 ## Limitations
 
-- **Spacing is per task.** A task counts as "the same task" the way `throttle` counts it. Tasks loaded
-  by `include_tasks` with a host-specific file name count as different tasks and aren't spaced against
-  each other.
+- **Without a key, spacing is per task.** A task counts as "the same task" the way `throttle` counts it.
+  Tasks loaded by `include_tasks` with a host-specific file name count as different tasks; give them a
+  shared `time_offset_key` if they should be spaced together.
+- **A task skipped by `when:` still waits for its start slot.** Ansible evaluates the condition only once
+  the task runs. This rarely costs anything per task, but under a shared key the slot also delays the other
+  tasks with that key.
 - **A `loop` is spaced per host, not per item.**
 - **The `TASK [...]` banner** (the `v2_playbook_on_task_start` callback) prints when a task is scheduled.
   `v2_runner_on_start` fires when it really starts.
@@ -185,6 +222,8 @@ The integration target runs playbooks against six local hosts. Each host records
 - later tasks aren't delayed again;
 - a gap of 0 behaves like `free`;
 - task-level variables and jitter work;
+- a shared `time_offset_key` spaces different tasks against each other, a per-host key gives independent
+  queues, and with no key those starts collide (the control case);
 - bad values fail with a clear message.
 
 CI runs all three test types against ansible-core 2.19, 2.20, 2.21 and devel.

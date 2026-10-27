@@ -66,3 +66,10 @@ def test_fractional_gap():
     clock, scheduler = make_scheduler()
     starts = [scheduler.reserve('task', gap=0.25) for dummy in range(3)]
     assert starts == [100.0, 100.25, 100.5]
+
+
+def test_shared_key_spaces_different_tasks_together():
+    clock, scheduler = make_scheduler()
+    shared = ('key', 'mgmt01')
+    starts = [scheduler.reserve(shared, gap=3) for dummy in ('task-a on host1', 'task-b on host2', 'task-a on host3')]
+    assert starts == [100.0, 103.0, 106.0]

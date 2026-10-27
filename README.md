@@ -24,8 +24,14 @@ Ansible's built-in tools don't fit this case well:
 | `serial: 1` | 1 for the whole play | ~20 min per task |
 | **`time_offset`, 2 s gap** | all, starting 2 s apart | ~60 s + 19 × 2 s ≈ 98 s |
 
-With `free`, hosts don't wait for each other between tasks, so once the first offset task spreads them
-out, later tasks usually already meet the gap. You pay about `(hosts − 1) × gap` once per play, not per task.
+**Every task respects the gap.** No two hosts ever start the same task closer together than
+`time_offset_seconds`, for every task, every handler and every `serial` batch.
+
+**What you pay for that is usually small.** `free` doesn't make hosts wait for each other between tasks.
+So once the first offset task has spread them out, they reach each later task already spaced at least a gap
+apart, and there's rarely anything to hold back. The total extra time is about `(hosts − 1) × gap`,
+plus a little more whenever hosts bunch back up (for example, after a task that waits on the same
+external event for everyone).
 
 This collection started as a feature request to ansible-core,
 [ansible/ansible#80519](https://github.com/ansible/ansible/issues/80519). Core no longer accepts new
@@ -140,10 +146,12 @@ Nothing sleeps in the strategy loop, so a held host never slows down other hosts
 - **The `TASK [...]` banner** (the `v2_playbook_on_task_start` callback) prints when a task is scheduled.
   `v2_runner_on_start` fires when it really starts.
 - **`throttle` still applies.** It counts only started tasks, not held ones.
+- **Meta tasks** (`meta: flush_handlers` and the like) run inside the strategy, not on a worker, so they
+  aren't spaced. They don't touch remote systems.
 - **Whatever `free` doesn't support isn't supported here either:** `run_once`, `any_errors_fatal`,
   `max_fail_percentage`, and modules that bypass the host loop (such as `pause`).
 - **It relies on ansible-core strategy internals** (`_queue_task`, `_process_pending_results`,
-  `_blocked_hosts`). CI runs weekly against ansible-core `devel` to catch upstream changes early.
+  `_blocked_hosts`). Every PR is also tested against ansible-core `devel` to catch upstream changes early.
 
 ## Development
 

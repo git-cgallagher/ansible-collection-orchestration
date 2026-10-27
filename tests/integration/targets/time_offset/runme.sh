@@ -56,3 +56,11 @@ if run play_level.yml -e probe_log="${log}" -e play_gap=-1 -e hold=0 > "${log_di
     exit 1
 fi
 grep "'time_offset_seconds' must not be negative" "${log_dir}/neg.out"
+
+# 7. serial batches: the gap holds across batch boundaries, not just within a batch. The task is shorter than
+#    the gap, so without carrying start times over, the next batch would start almost at once.
+for batch in 3 1; do
+    log="${log_dir}/serial${batch}.log"; rm -f "${log}"
+    run serial.yml -e probe_log="${log}" -e batch="${batch}"
+    check "${log}" batched --count "${HOSTS}" --min-gap 0.8 --max-gap 1.9
+done

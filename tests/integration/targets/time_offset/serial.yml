@@ -1,0 +1,12 @@
+# serial batches: each batch gets a new strategy object, and the gap must still hold across batch boundaries.
+- hosts: probe_hosts
+  gather_facts: false
+  strategy: git_cgallagher.orchestration.time_offset
+  serial: "{{ batch }}"
+  vars:
+    time_offset_seconds: 1
+    probe: "{{ ansible_playbook_python }} {{ playbook_dir }}/probe.py {{ probe_log }} {{ inventory_hostname }}"
+  tasks:
+    - name: Quick task, shorter than the gap
+      ansible.builtin.command: "{{ probe }} batched 0"
+      changed_when: false

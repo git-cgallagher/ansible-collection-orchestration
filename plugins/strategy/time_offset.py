@@ -12,8 +12,9 @@ description:
     seconds. The first host starts immediately, the second no sooner than the gap after it, and so on.
   - Unlike C(throttle), this does not serialize the task. A host waits only for its start slot, not for other
     hosts to finish, so the task still runs on many hosts at once - just not starting at the same instant.
-  - Once hosts are spread out by the first offset task, later tasks usually already satisfy the gap and are not
-    delayed further, so the cost is roughly (hosts - 1) x gap once per play, not per task.
+  - The gap applies to every task, handler and C(serial) batch. Once hosts are spread out by the first offset
+    task they usually reach later tasks already spaced, so those are rarely held back and the extra time is
+    roughly (hosts - 1) x gap per play, plus more whenever hosts bunch back up.
   - The settings are ordinary variables, read per host and per task, so they can be set at play, group, host,
     block or task level and may be templated. Leaving both unset (or V(0)) makes a task run exactly as under
     P(ansible.builtin.free#strategy).
@@ -26,6 +27,7 @@ notes:
   - Starts are spaced per task, identified the same way C(throttle) identifies a task. Tasks loaded by
     C(include_tasks) with host-specific file names count as different tasks and are not spaced against each other.
   - A task with C(loop) is spaced per host, not per loop item.
+  - Meta tasks run inside the strategy rather than on a worker, so they are not spaced.
   - The C(v2_playbook_on_task_start) callback (the TASK banner) fires when a host's task is scheduled; the
     C(v2_runner_on_start) callback fires when it actually starts.
   - C(throttle) still applies and counts only tasks that have started, not ones waiting for their start slot.
@@ -103,9 +105,12 @@ class OffsetScheduler:
 
 class StrategyModule(FreeStrategyModule):
 
+    # Ansible creates a new strategy object for every serial batch, so the scheduler lives on the class:
+    # each task's last start time then carries over and the gap holds across batch boundaries too.
+    _offset_scheduler = OffsetScheduler()
+
     def __init__(self, tqm):
         super(StrategyModule, self).__init__(tqm)
-        self._offset_scheduler = OffsetScheduler()
         # min-heap of (start, seq, host, task, task_vars, play_context) waiting for their start slot
         self._deferred = []
         self._deferred_seq = itertools.count()

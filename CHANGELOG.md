@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 — 2026-10-28
 
 - A `when:` that calls a lookup (`lookup()`, `query()`, `q()`) is no longer evaluated up front, so the lookup
   runs once per host instead of twice. New variable `time_offset_check_when` (default `true`): set it to

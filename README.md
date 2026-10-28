@@ -179,6 +179,30 @@ worker process.
 
 Nothing sleeps in the strategy loop, so a held host never slows down other hosts or other tasks.
 
+## What the gap does and doesn't guarantee
+
+**It spaces when tasks start, not how many run at once.** Each host waits only for its start slot, not
+for earlier hosts to finish. A task that takes longer than the gap therefore overlaps on many hosts: a
+60 s task with a 2 s gap can have up to 30 hosts inside it at once. If the backend breaks on *how many
+run at the same time*, rather than *how many start at the same moment*, add `throttle` to the task too:
+
+```yaml
+- name: Clone and customize VM
+  community.vmware.vmware_guest:
+    name: "{{ inventory_hostname }}"
+    template: win2022-template
+  delegate_to: localhost
+  throttle: 4                    # at most 4 clones running at once...
+  vars:
+    time_offset_seconds: 2       # ...and no two starting within 2 s of each other
+```
+
+**It spaces when Ansible launches each task, not when the work reaches the target.** After launch,
+Ansible still connects to the host, copies the module over and starts it. That takes a variable amount of
+time per host, so two tasks launched 1 s apart can reach the target closer together than that. The
+variation is small for `delegate_to: localhost`. Over WinRM or a slow SSH connection it can be a second or
+more. Set the gap comfortably larger than that variation.
+
 ## Limitations
 
 - **Without a key, spacing is per task.** A task counts as "the same task" the way `throttle` counts it.
@@ -192,7 +216,8 @@ Nothing sleeps in the strategy loop, so a held host never slows down other hosts
 - **A `loop` is spaced per host, not per item.**
 - **The `TASK [...]` banner** (the `v2_playbook_on_task_start` callback) prints when a task is scheduled.
   `v2_runner_on_start` fires when it really starts.
-- **`throttle` still applies.** It counts only started tasks, not held ones.
+- **`throttle` and the gap work together.** The gap spaces when tasks start; `throttle` caps how many run
+  at once. A task that `throttle` holds past its slot still starts at least a gap after the previous one.
 - **Meta tasks** (`meta: flush_handlers` and the like) run inside the strategy, not on a worker, so they
   aren't spaced. They don't touch remote systems.
 - **Whatever `free` doesn't support isn't supported here either:** `run_once`, `any_errors_fatal`,
@@ -238,6 +263,7 @@ The integration target runs playbooks against six local hosts. Each host records
 - later tasks aren't delayed again;
 - a gap of 0 behaves like `free`;
 - task-level variables and jitter work;
+- `throttle` still caps how many run at once when combined with a gap;
 - a task whose `when:` is false takes no start slot, so skipped tasks never delay the ones that run;
 - a shared `time_offset_key` spaces different tasks against each other, a per-host key gives independent
   queues, and with no key those starts collide (the control case);

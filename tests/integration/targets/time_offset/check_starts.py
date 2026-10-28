@@ -25,6 +25,8 @@ def main():
     parser.add_argument('--max-span', type=float, help='largest allowed time from first to last start')
     parser.add_argument('--overlaps', type=float, metavar='HOLD',
                         help='the second host must start before the first host finished a task held open HOLD seconds')
+    parser.add_argument('--max-concurrent', nargs=2, type=float, metavar=('N', 'HOLD'),
+                        help='at most N tasks may run at once, each held open HOLD seconds')
     parser.add_argument('--expect-collision', type=float, metavar='SECONDS',
                         help='the smallest gap must be below SECONDS (proves the starts were NOT spaced)')
     parser.add_argument('--not-delayed-after', nargs=2, metavar=('LABEL', 'SECONDS'),
@@ -48,6 +50,16 @@ def main():
         failures.append('span %.3fs is above %.3fs' % (span, args.max_span))
     if args.overlaps is not None and len(starts) > 1 and starts[1] >= starts[0] + args.overlaps:
         failures.append('second host did not start until the first finished: the task ran serially')
+    if args.max_concurrent:
+        limit, hold = int(args.max_concurrent[0]), args.max_concurrent[1]
+        events = sorted([(s, 1) for s in starts] + [(s + hold, -1) for s in starts], key=lambda e: (e[0], e[1]))
+        running = peak = 0
+        for dummy, change in events:
+            running += change
+            peak = max(peak, running)
+        print('%s: at most %d running at once' % (args.label, peak))
+        if peak > limit:
+            failures.append('%d ran at once, throttle allows %d' % (peak, limit))
     if args.expect_collision is not None and gaps and min(gaps) >= args.expect_collision:
         failures.append('smallest gap %.3fs is not below %.3fs: starts were spaced when they should not be'
                         % (min(gaps), args.expect_collision))

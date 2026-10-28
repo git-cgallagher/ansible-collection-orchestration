@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Fix: `throttle` didn't limit tasks that had been held for their start slot. `free` checks throttle by
+  counting running workers, and held tasks weren't running yet, so they all passed the check and started
+  together once released (6 at once with `throttle: 2` in testing). Held tasks now start only when their
+  throttle has room. Each start is also checked against the real start before it, so tasks throttle held
+  past their slot still start at least a gap apart.
+- Docs: a README section on what the gap does and doesn't guarantee. It spaces task *starts* (use `throttle` to
+  cap how many run at once), measured when Ansible launches each task, before any connection or module
+  start-up time.
+- CI: a monthly scheduled run tests new ansible-core releases even when no PR is open. On that run a devel
+  failure fails the workflow, so GitHub emails a notice; on PRs, devel stays a non-blocking warning.
+
 ## 0.2.0 — 2026-10-28
 
 - Tasks whose `when:` is already false no longer take a start slot. They used to be held for a slot like any

@@ -73,3 +73,27 @@ def test_shared_key_spaces_different_tasks_together():
     shared = ('key', 'mgmt01')
     starts = [scheduler.reserve(shared, gap=3) for dummy in ('task-a on host1', 'task-b on host2', 'task-a on host3')]
     assert starts == [100.0, 103.0, 106.0]
+
+
+def test_gap_elapsed_tracks_real_starts_not_reservations():
+    clock, scheduler = make_scheduler()
+    key = ('task', 'a')
+    assert scheduler.gap_elapsed(key, gap=2)
+    scheduler.started(key)
+    clock.now = 101.0
+    assert not scheduler.gap_elapsed(key, gap=2)
+    clock.now = 102.0
+    assert scheduler.gap_elapsed(key, gap=2)
+
+
+def test_a_late_start_pushes_back_the_next_one():
+    # throttle held the first task past its slot; the next one must still wait a full gap after it really started
+    clock, scheduler = make_scheduler()
+    key = ('task', 'a')
+    assert scheduler.reserve(key, gap=1) == 100.0
+    assert scheduler.reserve(key, gap=1) == 101.0
+    clock.now = 105.0
+    scheduler.started(key)
+    assert not scheduler.gap_elapsed(key, gap=1)
+    clock.now = 106.0
+    assert scheduler.gap_elapsed(key, gap=1)

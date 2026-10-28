@@ -39,7 +39,8 @@ notes:
   - Meta tasks run inside the strategy rather than on a worker, so they are not spaced.
   - The C(v2_playbook_on_task_start) callback (the TASK banner) fires when a host's task is scheduled; the
     C(v2_runner_on_start) callback fires when it actually starts.
-  - C(throttle) still applies and counts only tasks that have started, not ones waiting for their start slot.
+  - C(throttle) and the gap combine. The gap spaces when tasks start; C(throttle) caps how many run at once. A task
+    held by C(throttle) past its slot still starts at least the gap after the previous start.
   - Everything that is unsupported by P(ansible.builtin.free#strategy) (C(run_once), C(any_errors_fatal),
     C(max_fail_percentage), modules that bypass the host loop) is unsupported here too.
 seealso:
@@ -113,6 +114,7 @@ class OffsetScheduler:
         self._clock = clock
         self._rng = rng
         self._last_start = {}
+        self._last_actual = {}
 
     def now(self):
         return self._clock()
@@ -128,6 +130,19 @@ class OffsetScheduler:
         self._last_start[key] = start
         return start
 
+    def gap_elapsed(self, key, gap):
+        """True if at least ``gap`` seconds have passed since a task in queue ``key`` actually started.
+
+        Slots are spaced when they're reserved, but a held task can start later than its slot (``throttle``
+        can keep it waiting), so starts are also checked against the real start before them.
+        """
+        last = self._last_actual.get(key)
+        return last is None or self._clock() >= last + gap
+
+    def started(self, key):
+        """Record that a task in queue ``key`` started now."""
+        self._last_actual[key] = self._clock()
+
 
 class StrategyModule(FreeStrategyModule):
 
@@ -137,7 +152,7 @@ class StrategyModule(FreeStrategyModule):
 
     def __init__(self, tqm):
         super(StrategyModule, self).__init__(tqm)
-        # min-heap of (start, seq, host, task, task_vars, play_context) waiting for their start slot
+        # min-heap of (start, seq, host, task, task_vars, play_context, key, gap, throttle) waiting to start
         self._deferred = []
         self._deferred_seq = itertools.count()
 
@@ -151,17 +166,18 @@ class StrategyModule(FreeStrategyModule):
             display.vv("time_offset: '%s' won't run (its 'when' is false), so it isn't held" % task.get_name(), host=host.name)
             return super(StrategyModule, self)._queue_task(host, task, task_vars, play_context)
 
+        throttle = self._get_throttle(task, task_vars)
         start = self._offset_scheduler.reserve(key, gap, jitter)
         delay = start - self._offset_scheduler.now()
-        if delay <= 0:
-            return super(StrategyModule, self)._queue_task(host, task, task_vars, play_context)
+        if delay <= 0 and self._can_start(task, key, gap, throttle):
+            return self._start_task(host, task, task_vars, play_context, key)
 
         # The free strategy has already advanced this host past the task, so keep the host blocked until the
         # task really runs; otherwise free would hand the host its next task first. (ansible-core <= 2.21 sets
         # this before calling _queue_task; later versions set it inside StrategyBase._queue_task.)
         self._blocked_hosts[host.name] = True
-        heapq.heappush(self._deferred, (start, next(self._deferred_seq), host, task, task_vars, play_context))
-        display.vv("time_offset: starting '%s' in %.2fs" % (task.get_name(), delay), host=host.name)
+        heapq.heappush(self._deferred, (start, next(self._deferred_seq), host, task, task_vars, play_context, key, gap, throttle))
+        display.vv("time_offset: starting '%s' in %.2fs" % (task.get_name(), max(delay, 0)), host=host.name)
 
     def _process_pending_results(self, iterator, one_pass=False, max_passes=None):
         # free calls this on every pass of its loop, which makes it the place to release tasks whose slot has come
@@ -170,9 +186,42 @@ class StrategyModule(FreeStrategyModule):
 
     def _release_due_tasks(self):
         now = self._offset_scheduler.now()
+        still_waiting = []
         while self._deferred and self._deferred[0][0] <= now and not self._tqm._terminated:
-            dummy, dummy, host, task, task_vars, play_context = heapq.heappop(self._deferred)
-            super(StrategyModule, self)._queue_task(host, task, task_vars, play_context)
+            entry = heapq.heappop(self._deferred)
+            dummy, dummy, host, task, task_vars, play_context, key, gap, throttle = entry
+            if self._can_start(task, key, gap, throttle):
+                self._start_task(host, task, task_vars, play_context, key)
+            else:
+                still_waiting.append(entry)
+        for entry in still_waiting:
+            heapq.heappush(self._deferred, entry)
+
+    def _can_start(self, task, key, gap, throttle):
+        """A task whose slot has come starts only if the gap since the last real start has passed and its
+        ``throttle`` has room. free checks throttle before handing a task over, but counts only running
+        workers, so without this check every held task would pass it and they'd all start once released."""
+        if not self._offset_scheduler.gap_elapsed(key, gap):
+            return False
+        if throttle > 0:
+            running = sum(1 for worker in self._workers
+                          if worker and worker.is_alive() and worker._task._uuid == task._uuid)
+            if running >= throttle:
+                return False
+        return True
+
+    def _start_task(self, host, task, task_vars, play_context, key):
+        super(StrategyModule, self)._queue_task(host, task, task_vars, play_context)
+        self._offset_scheduler.started(key)
+
+    def _get_throttle(self, task, task_vars):
+        if not task.throttle:
+            return 0
+        templar = TemplateEngine(loader=self._loader, variables=task_vars)
+        try:
+            return int(templar.template(task.throttle))
+        except Exception as ex:
+            raise AnsibleError("Failed to convert the throttle value to an integer.", obj=task.throttle) from ex
 
     def _when_is_false(self, task, task_vars):
         """True only when the task's 'when' is certain to be false here, so the worker would skip it.

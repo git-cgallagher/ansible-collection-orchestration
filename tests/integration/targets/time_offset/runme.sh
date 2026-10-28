@@ -102,3 +102,11 @@ run when.yml -e probe_log="${log}"
 check "${log}" skipped --count 0
 check "${log}" partial --count 2 --min-gap "${MIN_GAP}"
 check "${log}" real --count "${HOSTS}" --min-gap "${MIN_GAP}" --not-delayed-after begin 10
+
+# 11. throttle + gap: throttle caps how many run at once (2 here, each held 3s) and every start, including the ones
+#     throttle held back past their slot, is still at least a gap after the one before. Before the fix, held tasks
+#     didn't count toward throttle and all 6 ran at once.
+log="${log_dir}/throttle.log"; rm -f "${log}"
+run throttle.yml -e probe_log="${log}"
+check "${log}" throttled --count "${HOSTS}" --min-gap "${MIN_GAP}" --max-concurrent 2 3
+

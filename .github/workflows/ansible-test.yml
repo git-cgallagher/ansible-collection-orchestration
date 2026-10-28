@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Monthly, so new ansible-core releases (stable point releases, and devel before it becomes the next
+  # stable) get tested even when no PR is open. The plugin hooks ansible-core internals, so an upstream
+  # change can break it without any change here.
+  schedule:
+    - cron: '17 13 1 * *'
   workflow_dispatch:
 
 permissions:
@@ -36,7 +41,9 @@ jobs:
   devel-venv:
     name: ${{ matrix.testing-type }} (devel, venv)
     runs-on: ubuntu-latest
-    continue-on-error: true
+    # Non-blocking on PRs and pushes. On the scheduled run a devel failure fails the run, so GitHub
+    # emails a failure notice instead of reporting green.
+    continue-on-error: ${{ github.event_name != 'schedule' }}
     strategy:
       fail-fast: false
       matrix:

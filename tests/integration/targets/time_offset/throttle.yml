@@ -1,0 +1,14 @@
+# throttle and the gap combine: at most 2 hosts inside the task at once, and starts still at least a gap apart,
+# including the ones throttle held back past their slot.
+- hosts: probe_hosts
+  gather_facts: false
+  strategy: git_cgallagher.orchestration.time_offset
+  vars:
+    probe: "{{ ansible_playbook_python }} {{ playbook_dir }}/probe.py {{ probe_log }} {{ inventory_hostname }}"
+  tasks:
+    - name: Throttled and offset
+      ansible.builtin.command: "{{ probe }} throttled 3"
+      changed_when: false
+      throttle: 2
+      vars:
+        time_offset_seconds: 1

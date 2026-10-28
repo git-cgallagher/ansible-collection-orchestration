@@ -21,6 +21,10 @@ rules.
   and would otherwise hand it the next one. On ≤2.21, `free` sets the flag before `_queue_task`; on devel
   (ansible/ansible commit `0e69d86c0`, 2026-07-01), base `_queue_task` sets it. The plugin sets it
   itself, so it works either way.
+- `throttle` is enforced again at release: `free` checks it before `_queue_task` but counts only running workers,
+  so held tasks all slipped past it (fixed 2026-10-28, integration case 11). `_can_start` checks throttle *and*
+  `OffsetScheduler.gap_elapsed` against the real last start, because a task throttle held past its slot no longer
+  matches the reservations.
 - Skipped tasks take no slot: `_when_is_false` calls `Task._resolve_conditional(task.when, task_vars)`, the
   same check `TaskExecutor` makes (same signature in 2.19, 2.21 and devel). It may only ever answer "skip"
   when that's certain. Any exception, and any looped task, means "hold". A wrong "skip" for a task that then
@@ -35,6 +39,12 @@ rules.
 `ansible-test` needs the checkout at `ansible_collections/git_cgallagher/orchestration/`. Run
 `ansible-test {sanity,units,integration} --docker default` from there. macOS has no `timeout` binary, so
 `runme.sh` only runs as-is inside the test container. The integration run takes about a minute.
+CI runs on every PR, on every push to `main`, and **monthly on a schedule** (`17 13 1 * *`). The schedule
+exists because the plugin hooks ansible-core internals, so an upstream release can break it with no change
+here. On scheduled runs only, `continue-on-error` is off for the devel jobs, so a devel failure fails the run
+and GitHub emails its owner. ⚠️ GitHub disables scheduled workflows in a public repo after **60 days with no
+commits**, so the monthly run stops silently if the repo goes quiet. Re-enable it under Actions →
+ansible-test.
 ⚠️ Gotcha: devel's test container fails to start on GitHub's `ubuntu-latest` runners (`ansible-test` exits
 while remounting `/sys/fs/cgroup`). It hit integration first, then units (2026-10-27), then sanity (2026-10-28), and
 retrying doesn't help. CI therefore runs **all** devel tests in the `devel-venv` job with

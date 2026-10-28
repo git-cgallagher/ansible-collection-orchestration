@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 — 2026-10-28
 
 - Repo: documented the security settings. CodeQL scans both the Python code and the GitHub Actions workflows,
   and repo-level auto-merge is off; merges are done by hand after every check passes.

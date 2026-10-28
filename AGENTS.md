@@ -93,7 +93,14 @@ bump it publish nothing.
 - Actions are pinned to commit SHAs with a version comment; `.github/dependabot.yml` bumps them monthly.
   Never replace a pin with a tag.
 - Secret scanning, push protection, Dependabot alerts and security updates, and private vulnerability
-  reporting are on (`SECURITY.md`). Turn on CodeQL default setup (Python) once Python code is on `main`.
+  reporting are on (`SECURITY.md`).
+- **CodeQL** default setup is on (since 2026-10-28) for **`python` and `actions`**, with the default query suite.
+  Python was enabled by hand. GitHub added `actions` itself once the repo had workflows, so the workflow files
+  are scanned for security mistakes too. It runs on every PR, on pushes to `main` and weekly. Its checks
+  (`Analyze (python)`, `Analyze (actions)`) are not required by the ruleset.
+- **Repo auto-merge is off** (`allow_auto_merge: false`, turned off 2026-10-28). It was switched on briefly
+  to auto-merge PR 1, then turned off by owner decision: merges are done by hand once every check, devel
+  included, is green. Auto-merge would only wait for the 9 required checks.
 - The devel job pip-installs an unpinned ansible-core tarball. That's acceptable because the workflow is
   `permissions: contents: read`, has no secrets and uses `pull_request`, not `pull_request_target`. Keep it
   that way.

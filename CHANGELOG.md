@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Repo: documented the security settings. CodeQL scans both the Python code and the GitHub Actions workflows,
+  and repo-level auto-merge is off; merges are done by hand after every check passes.
 - Docs: `docs/examples.md`, 28 usage examples from the basics to real-world recipes, plus when not to use the
   strategy and how to see what it's doing with `-vv`.
 

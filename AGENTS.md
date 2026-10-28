@@ -29,6 +29,9 @@ rules.
   same check `TaskExecutor` makes (same signature in 2.19, 2.21 and devel). It may only ever answer "skip"
   when that's certain. Any exception, and any looped task, means "hold". A wrong "skip" for a task that then
   runs would start it outside its slot; a wrong "hold" only costs time. Integration case 10 pins it.
+  It also holds (without evaluating) when a `when` string calls `lookup`/`query`/`q` (`_LOOKUP_CALL`) or when
+  `time_offset_check_when` is false, so lookups don't run twice. Case 12 counts lookup runs (6 = once, 12 =
+  twice). ansible-core 2.19 deprecated `disable_lookups`, so a static check is the only reliable option.
 - The `OffsetScheduler` is a **class attribute** on purpose: Ansible builds a new strategy object for every
   `serial` batch, and per-instance state reset the gap at each batch boundary (caught in review 2026-10-27,
   pinned by integration case 7). Task `_uuid`s are stable across batches.

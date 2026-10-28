@@ -1,0 +1,23 @@
+# A lookup in 'when' must run once per host (on the worker), not twice. The pipe lookup appends a line to a
+# counter file each time it runs, so the file's line count is the number of runs.
+#   direct:   the 'when' calls a lookup itself, so the plugin doesn't check it up front.
+#   indirect: the 'when' reads a variable whose value is a lookup; with time_offset_check_when: false the
+#             plugin doesn't check it up front either.
+- hosts: probe_hosts
+  gather_facts: false
+  strategy: git_cgallagher.orchestration.time_offset
+  vars:
+    time_offset_seconds: 1
+    lookup_value: "{{ lookup('pipe', 'echo run >> ' ~ indirect_log ~ '; echo 0') }}"
+  tasks:
+    - name: Lookup called directly in when
+      ansible.builtin.debug:
+        msg: never runs
+      when: lookup('pipe', 'echo run >> ' ~ direct_log ~ '; echo 0') == '1'
+
+    - name: Lookup reached through a variable, with the up-front check turned off
+      ansible.builtin.debug:
+        msg: never runs
+      when: lookup_value == '1'
+      vars:
+        time_offset_check_when: "{{ check_when }}"

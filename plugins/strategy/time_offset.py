@@ -21,6 +21,8 @@ description:
   - "C(time_offset_seconds) - minimum gap, in seconds (fractions allowed), between two hosts starting the same task."
   - "C(time_offset_jitter) - extra random delay, from 0 up to this many seconds, added to each gap so hosts do not
     fall into a fixed rhythm against a shared backend."
+  - "C(time_offset_check_when) - set to V(false) to stop the plugin evaluating a task's C(when) before holding it
+    (default V(true)). Tasks skipped by C(when) then take a start slot again, as in 0.1.0."
   - "C(time_offset_key) - what to space starts against. By default each task has its own queue of start slots. Tasks
     with the same key share one queue instead, so the gap holds between any two of them on any hosts, even if they
     are different tasks. Use it when several tasks hit the same target, for example
@@ -35,7 +37,11 @@ notes:
   - A task whose C(when) is already false when the host reaches it is not held and takes no start slot, so a
     skipped task never delays other hosts. The condition is checked with the same code Ansible uses when it
     runs the task. If it can't be decided up front (for example, it needs a value only the worker sets, or the
-    task has a C(loop)), the task is held as usual. Lookups in a C(when) therefore run once more on the controller.
+    task has a C(loop)), the task is held as usual.
+  - A C(when) that calls a lookup (C(lookup), C(query) or C(q)) is not checked up front, so the lookup runs once, on the
+    worker, as it would under any strategy. A C(when) that reaches a lookup indirectly, through a variable whose value
+    is a lookup, is checked up front and that lookup runs once more on the controller. Set C(time_offset_check_when)
+    to V(false) on the task, block or play to turn the up-front check off there entirely.
   - Meta tasks run inside the strategy rather than on a worker, so they are not spaced.
   - The C(v2_playbook_on_task_start) callback (the TASK banner) fires when a host's task is scheduled; the
     C(v2_runner_on_start) callback fires when it actually starts.
@@ -93,10 +99,12 @@ EXAMPLES = r"""
 import heapq
 import itertools
 import random
+import re
 import time
 
 from ansible._internal._templating._engine import TemplateEngine
 from ansible.errors import AnsibleError
+from ansible.module_utils.parsing.convert_bool import boolean
 from ansible.plugins.strategy.free import StrategyModule as FreeStrategyModule
 from ansible.utils.display import Display
 
@@ -105,6 +113,10 @@ display = Display()
 GAP_VAR = 'time_offset_seconds'
 JITTER_VAR = 'time_offset_jitter'
 KEY_VAR = 'time_offset_key'
+CHECK_WHEN_VAR = 'time_offset_check_when'
+
+# a 'when' that calls a lookup isn't checked up front, so the lookup runs once (on the worker), not twice
+_LOOKUP_CALL = re.compile(r'\b(?:lookup|query|q)\s*\(')
 
 
 class OffsetScheduler:
@@ -232,11 +244,23 @@ class StrategyModule(FreeStrategyModule):
         """
         if not task.when or task.loop is not None or task.loop_with:
             return False
+        if any(isinstance(condition, str) and _LOOKUP_CALL.search(condition) for condition in task.when):
+            return False
+        if not self._check_when_enabled(task_vars):
+            return False
         try:
             # the same check TaskExecutor makes; it raises if the condition needs values only the worker has
             return not task._resolve_conditional(task.when, task_vars)
         except Exception:
             return False
+
+    def _check_when_enabled(self, task_vars):
+        value = task_vars.get(CHECK_WHEN_VAR, True)
+        templar = TemplateEngine(loader=self._loader, variables=task_vars)
+        try:
+            return boolean(templar.template(value), strict=True)
+        except Exception as ex:
+            raise AnsibleError("'%s' must be a boolean, got %r." % (CHECK_WHEN_VAR, value)) from ex
 
     def _get_offset_settings(self, task, task_vars):
         """Return (gap, jitter, queue key) for this task on this host."""

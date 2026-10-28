@@ -110,3 +110,23 @@ log="${log_dir}/throttle.log"; rm -f "${log}"
 run throttle.yml -e probe_log="${log}"
 check "${log}" throttled --count "${HOSTS}" --min-gap "${MIN_GAP}" --max-concurrent 2 3
 
+# 12. Lookups in 'when' run once per host, not twice. Direct lookup calls skip the up-front check automatically;
+#     an indirect one (through a variable) runs twice unless time_offset_check_when is false. Each run appends one
+#     line, so the expected counts are hosts (once) or 2 x hosts (twice).
+count_lines() { if [ -f "$1" ]; then wc -l < "$1" | tr -d ' '; else echo 0; fi; }
+direct="${log_dir}/lookup_direct.log"; indirect="${log_dir}/lookup_indirect.log"; rm -f "${direct}" "${indirect}"
+run lookup.yml -e direct_log="${direct}" -e indirect_log="${indirect}" -e check_when=false
+[ "$(count_lines "${direct}")" -eq "${HOSTS}" ] || { echo "direct lookup ran $(count_lines "${direct}") times, expected ${HOSTS}"; exit 1; }
+[ "$(count_lines "${indirect}")" -eq "${HOSTS}" ] || { echo "indirect lookup ran $(count_lines "${indirect}") times with the check off, expected ${HOSTS}"; exit 1; }
+#     Control: with the up-front check on, the indirect lookup runs twice per host. That proves the opt-out is what
+#     made the difference above.
+rm -f "${direct}" "${indirect}"
+run lookup.yml -e direct_log="${direct}" -e indirect_log="${indirect}" -e check_when=true
+[ "$(count_lines "${indirect}")" -eq $((HOSTS * 2)) ] || { echo "indirect lookup ran $(count_lines "${indirect}") times with the check on, expected $((HOSTS * 2))"; exit 1; }
+
+# 13. A time_offset_check_when that isn't a boolean fails the play with a clear message.
+if run lookup.yml -e direct_log="${direct}" -e indirect_log="${indirect}" -e check_when=maybe > "${log_dir}/badcheck.out" 2>&1; then
+    echo "expected the play to fail for a non-boolean time_offset_check_when"
+    exit 1
+fi
+grep "'time_offset_check_when' must be a boolean" "${log_dir}/badcheck.out"

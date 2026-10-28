@@ -2,7 +2,7 @@
 # GNU General Public License v3.0+ (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import annotations
 
-from ansible_collections.git_cgallagher.orchestration.plugins.strategy.time_offset import OffsetScheduler
+from ansible_collections.git_cgallagher.orchestration.plugins.strategy.time_offset import OffsetScheduler, _LOOKUP_CALL
 
 
 class FakeClock:
@@ -97,3 +97,21 @@ def test_a_late_start_pushes_back_the_next_one():
     assert not scheduler.gap_elapsed(key, gap=1)
     clock.now = 106.0
     assert scheduler.gap_elapsed(key, gap=1)
+
+
+def test_lookup_calls_in_when_are_detected():
+    for condition in ("lookup('url', 'https://api') == 'ok'",
+                      "query('inventory_hostnames', 'all') | length > 2",
+                      "q('pipe', 'date')",
+                      "lookup ('env', 'HOME')",
+                      "x and community.general.lookup('a')"):
+        assert _LOOKUP_CALL.search(condition), condition
+
+
+def test_plain_conditions_are_not_mistaken_for_lookups():
+    for condition in ("inventory_hostname in groups['web']",
+                      "my_lookup_result is defined",
+                      "lookups_enabled | bool",
+                      "faq_seen",
+                      "result.rc == 0"):
+        assert not _LOOKUP_CALL.search(condition), condition

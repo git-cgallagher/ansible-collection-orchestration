@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — 2026-10-28
 
 - Tasks whose `when:` is already false no longer take a start slot. They used to be held for a slot like any
   other task, which under a shared `time_offset_key` pushed back every task behind them; in the test play,

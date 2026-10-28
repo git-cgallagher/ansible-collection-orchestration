@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Tasks whose `when:` is already false no longer take a start slot. They used to be held for a slot like any
+  other task, which under a shared `time_offset_key` pushed back every task behind them; in the test play,
+  the last real start moved from ~23s to ~7s after the play began (just the 8 starts that actually run, 1s apart). The condition is checked with the same
+  code Ansible uses when it runs the task; when it can't be decided up front (it needs values only the
+  worker sets, or the task loops), the task is held as before.
+
 ## 0.1.0 — 2026-10-27
 
 - Initial release: `git_cgallagher.orchestration.time_offset` strategy. It works like `free`, but spaces each

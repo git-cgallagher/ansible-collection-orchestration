@@ -95,3 +95,10 @@ if run keyed.yml -e probe_log="${log}" -e key_mode=shared -e '{"time_offset_key"
 fi
 grep "'time_offset_key' must be a string" "${log_dir}/badkey.out"
 
+# 10. A task whose 'when' is already false doesn't take a start slot. The skipped tasks never run, the two hosts
+#     that do run the partial task are still spaced, and the real task isn't pushed back by the skipped ones.
+log="${log_dir}/when.log"; rm -f "${log}"
+run when.yml -e probe_log="${log}"
+check "${log}" skipped --count 0
+check "${log}" partial --count 2 --min-gap "${MIN_GAP}"
+check "${log}" real --count "${HOSTS}" --min-gap "${MIN_GAP}" --not-delayed-after begin 10

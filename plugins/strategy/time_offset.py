@@ -32,9 +32,10 @@ notes:
   - Without C(time_offset_key), starts are spaced per task, identified the same way C(throttle) identifies a task. Tasks loaded by
     C(include_tasks) with host-specific file names count as different tasks and are not spaced against each other.
   - A task with C(loop) is spaced per host, not per loop item.
-  - A task skipped by C(when) is still held for its start slot, because the condition is only evaluated once the
-    task runs. Under a shared C(time_offset_key) that slot also delays the other tasks with the same key, so set
-    the key on the tasks that actually hit the shared target rather than on a whole play full of conditional tasks.
+  - A task whose C(when) is already false when the host reaches it is not held and takes no start slot, so a
+    skipped task never delays other hosts. The condition is checked with the same code Ansible uses when it
+    runs the task. If it can't be decided up front (for example, it needs a value only the worker sets, or the
+    task has a C(loop)), the task is held as usual. Lookups in a C(when) therefore run once more on the controller.
   - Meta tasks run inside the strategy rather than on a worker, so they are not spaced.
   - The C(v2_playbook_on_task_start) callback (the TASK banner) fires when a host's task is scheduled; the
     C(v2_runner_on_start) callback fires when it actually starts.
@@ -145,6 +146,11 @@ class StrategyModule(FreeStrategyModule):
         if gap == 0 and jitter == 0:
             return super(StrategyModule, self)._queue_task(host, task, task_vars, play_context)
 
+        if self._when_is_false(task, task_vars):
+            # the worker will only skip it, so don't spend a start slot (and delay other hosts) on it
+            display.vv("time_offset: '%s' won't run (its 'when' is false), so it isn't held" % task.get_name(), host=host.name)
+            return super(StrategyModule, self)._queue_task(host, task, task_vars, play_context)
+
         start = self._offset_scheduler.reserve(key, gap, jitter)
         delay = start - self._offset_scheduler.now()
         if delay <= 0:
@@ -167,6 +173,21 @@ class StrategyModule(FreeStrategyModule):
         while self._deferred and self._deferred[0][0] <= now and not self._tqm._terminated:
             dummy, dummy, host, task, task_vars, play_context = heapq.heappop(self._deferred)
             super(StrategyModule, self)._queue_task(host, task, task_vars, play_context)
+
+    def _when_is_false(self, task, task_vars):
+        """True only when the task's 'when' is certain to be false here, so the worker would skip it.
+
+        Anything uncertain returns False and the task is held as usual: predicting a skip for a task that then
+        runs would start it outside its slot. Looped tasks are never predicted, because the worker evaluates
+        their 'when' once per item, with the loop variable set.
+        """
+        if not task.when or task.loop is not None or task.loop_with:
+            return False
+        try:
+            # the same check TaskExecutor makes; it raises if the condition needs values only the worker has
+            return not task._resolve_conditional(task.when, task_vars)
+        except Exception:
+            return False
 
     def _get_offset_settings(self, task, task_vars):
         """Return (gap, jitter, queue key) for this task on this host."""

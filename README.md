@@ -65,7 +65,13 @@ and in [CHANGELOG.md](CHANGELOG.md).
 
 ## Usage
 
-Set the strategy, then set the gap as an ordinary variable.
+Set the strategy, then set the gap as an ordinary variable. The examples below cover the essentials;
+**[docs/examples.md](docs/examples.md) has 28 more**:
+- basics: blocks, jitter, computed gaps, per-environment settings;
+- shared-target keys: per-server queues, load balancers, keys across plays;
+- combining with `throttle`, `serial`, handlers, includes, conditionals and loops;
+- real-world recipes: vSphere, Active Directory, package mirrors, staggered reboots, rate-limited APIs,
+  cloud provisioning, Git servers and certificate authorities.
 
 ### Offset every task in a play
 

@@ -32,10 +32,10 @@ rules.
 `ansible-test {sanity,units,integration} --docker default` from there. macOS has no `timeout` binary, so
 `runme.sh` only runs as-is inside the test container. The integration run takes about a minute.
 ⚠️ Gotcha: devel's test container fails to start on GitHub's `ubuntu-latest` runners (`ansible-test` exits
-while remounting `/sys/fs/cgroup`). It hit integration first, then units too (2026-10-27), and retrying doesn't
-help. CI therefore runs devel units and integration in the `devel-venv` job with `ansible-test --venv`, no
-container. Devel sanity still uses the container (it needs the pinned linters) and passes for now; if it starts
-failing the same way, that's the same cause. Released versions run fine in the container.
+while remounting `/sys/fs/cgroup`). It hit integration first, then units (2026-10-27), then sanity (2026-10-28), and
+retrying doesn't help. CI therefore runs **all** devel tests in the `devel-venv` job with
+`ansible-test --venv --requirements`, which installs the sanity linters into the venv; no container. Released
+versions run fine in the container.
 ⚠️ Gotcha: `probe.py` timestamps a task when its Python process starts on the host, not when Ansible launches
 it (the moment the plugin actually spaces). On a busy runner that adds up to ~0.4s of variation, which once
 failed a 0.85s floor with a 0.776s gap, on devel, 2026-10-27. All 1s-gap checks now share `MIN_GAP=0.7` in
@@ -64,7 +64,7 @@ bump it publish nothing.
 ## Repo security (public repo)
 - `main` is protected by the ruleset **"main protection"**: changes go through a PR, force-push and deletion are
   blocked, there's no bypass, and the 9 `stable-*` checks (`sanity|units|integration (stable-2.19|2.20|2.21)`)
-  are required. Devel checks (`sanity (devel)`, `units (devel, venv)`, `integration (devel, venv)`) are **not** required: a red devel
+  are required. Devel checks (`sanity (devel, venv)`, `units (devel, venv)`, `integration (devel, venv)`) are **not** required: a red devel
   check is an early warning about upstream core, not a merge blocker. When the supported versions change,
   update the matrix, `meta/runtime.yml` **and** the ruleset's required checks together, or PRs block on
   checks that no longer run.

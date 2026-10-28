@@ -39,28 +39,29 @@ plugins, so it lives here.
 
 ## Install
 
-From Ansible Galaxy, once the first release is published:
+From [Ansible Galaxy](https://galaxy.ansible.com/ui/repo/published/git_cgallagher/orchestration/):
 
 ```bash
 ansible-galaxy collection install git_cgallagher.orchestration
 ```
 
-Or straight from GitHub:
+Or in a `requirements.yml`, pinned to a release:
+
+```yaml
+collections:
+  - name: git_cgallagher.orchestration
+    version: ">=0.1.0,<0.2.0"
+```
+
+To try unreleased changes, install straight from `main` on GitHub:
 
 ```bash
 ansible-galaxy collection install git+https://github.com/git-cgallagher/ansible-collection-orchestration.git
 ```
 
-Or in a `requirements.yml`:
-
-```yaml
-collections:
-  - name: https://github.com/git-cgallagher/ansible-collection-orchestration.git
-    type: git
-    version: main
-```
-
-Requires ansible-core 2.19 or later.
+Requires ansible-core 2.19 or later. Releases are listed on the
+[GitHub releases page](https://github.com/git-cgallagher/ansible-collection-orchestration/releases)
+and in [CHANGELOG.md](CHANGELOG.md).
 
 ## Usage
 

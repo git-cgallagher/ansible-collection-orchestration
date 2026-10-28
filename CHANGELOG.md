@@ -13,7 +13,7 @@
   `include_tasks`, `serial` batches, shared and per-host keys (with a no-key control case) and bad values.
 - Release automation: `galaxy-publish` workflow publishes each new `galaxy.yml` version to Galaxy when it lands
   on `main`, then tags it and creates a GitHub release. The token lives in a main-only `galaxy` environment.
-- CI: `ansible-test` sanity/units/integration on ansible-core 2.19–2.21 and devel. Devel units and integration run with `--venv` (no container), because devel's test container can't
+- CI: `ansible-test` sanity/units/integration on ansible-core 2.19–2.21 and devel. All devel tests (sanity, units, integration) run with `--venv` (no container), because devel's test container can't
   start on GitHub runners.
 - Security: actions pinned to commit SHAs (Dependabot keeps them current), `SECURITY.md` with private
   vulnerability reporting, and a `main` ruleset requiring a PR and the stable-version checks.

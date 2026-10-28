@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- A `when:` that calls a lookup (`lookup()`, `query()`, `q()`) is no longer evaluated up front, so the lookup
+  runs once per host instead of twice. New variable `time_offset_check_when` (default `true`): set it to
+  `false` to stop the up-front check entirely, for example when a `when:` reaches an expensive lookup through
+  a variable.
 - Fix: `throttle` didn't limit tasks that had been held for their start slot. `free` checks throttle by
   counting running workers, and held tasks weren't running yet, so they all passed the check and started
   together once released (6 at once with `throttle: 2` in testing). Held tasks now start only when their

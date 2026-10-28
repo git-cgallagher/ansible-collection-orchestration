@@ -159,6 +159,7 @@ time_offset_seconds: 2
 | `time_offset_seconds` | `0` | Minimum gap, in seconds, between two hosts starting the same task. Fractions are allowed. |
 | `time_offset_jitter` | `0` | Extra random delay, from 0 up to this many seconds, added to each gap. |
 | `time_offset_key` | the task | What to space starts against. Tasks with the same key share one queue of start slots, so the gap holds between *any* of them on *any* hosts. Templated per host. |
+| `time_offset_check_when` | `true` | Whether to evaluate a task's `when:` before holding it, so skipped tasks take no start slot. Set `false` if evaluating it an extra time is a problem (see Limitations). |
 
 These are normal variables, so variable precedence applies: a task-level value overrides a play-level
 one, and either can be set per group or host or templated (`"{{ base_gap * 2 }}"`). A non-numeric or
@@ -212,7 +213,13 @@ more. Set the gap comfortably larger than that variation.
   the plugin evaluates its `when:` with the same code Ansible uses when it runs the task. If the condition
   is false, the task isn't held. If the condition can't be decided yet, the task is held as usual. That
   covers a condition that needs a value only set as the task runs, and any task with a `loop` (its `when:`
-  is evaluated per item). A lookup inside a `when:` therefore runs once more on the controller.
+  is evaluated per item).
+- **Lookups in `when:` run once, as usual.** A `when:` that calls `lookup()`, `query()` or `q()` isn't
+  checked up front, so the lookup runs only when the task does, as under any strategy. The task then waits
+  for its slot even if it ends up skipped. One case isn't caught automatically: a `when:` that reaches a
+  lookup *through a variable* (`when: api_status == 'ok'`, where `api_status` is a lookup). The up-front
+  check evaluates it once more. If that lookup is expensive or has side effects, set
+  `time_offset_check_when: false` on the task, block or play.
 - **A `loop` is spaced per host, not per item.**
 - **The `TASK [...]` banner** (the `v2_playbook_on_task_start` callback) prints when a task is scheduled.
   `v2_runner_on_start` fires when it really starts.
@@ -264,6 +271,8 @@ The integration target runs playbooks against six local hosts. Each host records
 - a gap of 0 behaves like `free`;
 - task-level variables and jitter work;
 - `throttle` still caps how many run at once when combined with a gap;
+- a lookup in `when:` runs once per host, not twice, and `time_offset_check_when: false` stops the
+  up-front check for lookups reached through variables;
 - a task whose `when:` is false takes no start slot, so skipped tasks never delay the ones that run;
 - a shared `time_offset_key` spaces different tasks against each other, a per-host key gives independent
   queues, and with no key those starts collide (the control case);

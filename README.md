@@ -50,7 +50,7 @@ Or in a `requirements.yml`, pinned to a release:
 ```yaml
 collections:
   - name: git_cgallagher.orchestration
-    version: ">=0.1.0,<0.2.0"
+    version: ">=0.2.0,<0.3.0"
 ```
 
 To try unreleased changes, install straight from `main` on GitHub:

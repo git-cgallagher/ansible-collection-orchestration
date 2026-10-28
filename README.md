@@ -39,7 +39,13 @@ plugins, so it lives here.
 
 ## Install
 
-From GitHub (no Galaxy release yet):
+From Ansible Galaxy, once the first release is published:
+
+```bash
+ansible-galaxy collection install git_cgallagher.orchestration
+```
+
+Or straight from GitHub:
 
 ```bash
 ansible-galaxy collection install git+https://github.com/git-cgallagher/ansible-collection-orchestration.git
@@ -189,6 +195,12 @@ Nothing sleeps in the strategy loop, so a held host never slows down other hosts
   `max_fail_percentage`, and modules that bypass the host loop (such as `pause`).
 - **It relies on ansible-core strategy internals** (`_queue_task`, `_process_pending_results`,
   `_blocked_hosts`). Every PR is also tested against ansible-core `devel` to catch upstream changes early.
+
+## Releasing
+
+Galaxy follows `main`. To release, bump `version` in `galaxy.yml` and add a `CHANGELOG.md` entry in the PR.
+When it merges, the `galaxy-publish` workflow publishes that version to Galaxy, tags it and creates a GitHub
+release. Merges that don't change the version publish nothing.
 
 ## Development
 

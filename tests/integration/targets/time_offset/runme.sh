@@ -5,6 +5,11 @@
 set -eux
 
 HOSTS=6
+# Lower bound for a measured gap when the configured gap is 1s. probe.py timestamps a task when its Python
+# process starts on the host, which comes a little after Ansible launches it (the moment the plugin actually
+# spaces), and that delay varies run to run. Busy CI runners have shown up to ~0.4s of that variation, so allow
+# 0.3s below the gap. Unspaced starts land within ~0.2s of each other, so 0.7 still tells the two apart.
+MIN_GAP=0.7
 log_dir="${OUTPUT_DIR:-$(mktemp -d)}"
 
 run() {
@@ -19,9 +24,9 @@ check() {
 #    the offset run must overlap and spread the starts about 1s apart.
 log="${log_dir}/gap.log"; rm -f "${log}"
 run play_level.yml -e probe_log="${log}" -e play_gap=1 -e hold=3
-check "${log}" first --count "${HOSTS}" --min-gap 0.85 --max-gap 1.9 --max-span 8 --overlaps 3
+check "${log}" first --count "${HOSTS}" --min-gap "${MIN_GAP}" --max-gap 1.9 --max-span 8 --overlaps 3
 # Hosts are already spread out after the first task, so the next task should not add more delay.
-check "${log}" second --count "${HOSTS}" --min-gap 0.85 --not-delayed-after first 4.5
+check "${log}" second --count "${HOSTS}" --min-gap "${MIN_GAP}" --not-delayed-after first 4.5
 check "${log}" included --count "${HOSTS}"
 check "${log}" handler --count "${HOSTS}"
 
@@ -31,16 +36,17 @@ run play_level.yml -e probe_log="${log}" -e play_gap=0 -e hold=1
 check "${log}" first --count "${HOSTS}" --max-span 1.5
 check "${log}" handler --count "${HOSTS}"
 
-# 3. Fractional gap plus jitter: every gap lands between the gap and gap + jitter.
+# 3. Gap plus jitter: every gap lands between the gap and gap + jitter (fractional gaps are covered by the
+#    unit tests, where the clock is exact).
 log="${log_dir}/jitter.log"; rm -f "${log}"
-run play_level.yml -e probe_log="${log}" -e play_gap=0.5 -e play_jitter=0.5 -e hold=1
-check "${log}" first --count "${HOSTS}" --min-gap 0.35 --max-gap 1.6
+run play_level.yml -e probe_log="${log}" -e play_gap=1 -e play_jitter=1 -e hold=1
+check "${log}" first --count "${HOSTS}" --min-gap "${MIN_GAP}" --max-gap 2.6
 
 # 4. Task-level variable: only that task is offset.
 log="${log_dir}/task.log"; rm -f "${log}"
 run task_level.yml -e probe_log="${log}"
 check "${log}" unoffset --count "${HOSTS}" --max-span 1.5
-check "${log}" offset --count "${HOSTS}" --min-gap 0.85 --max-gap 1.9
+check "${log}" offset --count "${HOSTS}" --min-gap "${MIN_GAP}" --max-gap 1.9
 
 # 5. A value that is not a number fails the play with a clear message.
 log="${log_dir}/bad.log"; rm -f "${log}"
@@ -62,7 +68,7 @@ grep "'time_offset_seconds' must not be negative" "${log_dir}/neg.out"
 for batch in 3 1; do
     log="${log_dir}/serial${batch}.log"; rm -f "${log}"
     run serial.yml -e probe_log="${log}" -e batch="${batch}"
-    check "${log}" batched --count "${HOSTS}" --min-gap 0.8 --max-gap 1.9
+    check "${log}" batched --count "${HOSTS}" --min-gap "${MIN_GAP}" --max-gap 1.9
 done
 
 # 8. time_offset_key: two different tasks share one queue of start slots.
@@ -74,13 +80,13 @@ check "${log}" none --count 12 --expect-collision 0.5
 #    Shared key: all 12 starts (6 hosts x 2 tasks) are spaced, so the span is about 11 gaps.
 log="${log_dir}/sharedkey.log"; rm -f "${log}"
 run keyed.yml -e probe_log="${log}" -e key_mode=shared
-check "${log}" shared --count 12 --min-gap 0.8 --max-gap 1.9
+check "${log}" shared --count 12 --min-gap "${MIN_GAP}" --max-gap 1.9
 #    Key templated per host: odd and even hosts resolve to different keys and get independent queues, each 6 starts
 #    spaced (span about 5 gaps, not 11).
 log="${log_dir}/splitkey.log"; rm -f "${log}"
 run keyed.yml -e probe_log="${log}" -e key_mode=split
-check "${log}" q0 --count 6 --min-gap 0.8 --max-span 7.5
-check "${log}" q1 --count 6 --min-gap 0.8 --max-span 7.5
+check "${log}" q0 --count 6 --min-gap "${MIN_GAP}" --max-span 7.5
+check "${log}" q1 --count 6 --min-gap "${MIN_GAP}" --max-span 7.5
 
 # 9. A key that isn't a string fails the play with a clear message.
 if run keyed.yml -e probe_log="${log}" -e key_mode=shared -e '{"time_offset_key": [1, 2]}' > "${log_dir}/badkey.out" 2>&1; then

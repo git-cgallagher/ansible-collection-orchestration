@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Docs: `docs/examples.md`, 28 usage examples from the basics to real-world recipes, plus when not to use the
+  strategy and how to see what it's doing with `-vv`.
+
 ## 0.2.1 — 2026-10-28
 
 - A `when:` that calls a lookup (`lookup()`, `query()`, `q()`) is no longer evaluated up front, so the lookup

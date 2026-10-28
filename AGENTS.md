@@ -21,6 +21,10 @@ rules.
   and would otherwise hand it the next one. On ≤2.21, `free` sets the flag before `_queue_task`; on devel
   (ansible/ansible commit `0e69d86c0`, 2026-07-01), base `_queue_task` sets it. The plugin sets it
   itself, so it works either way.
+- Skipped tasks take no slot: `_when_is_false` calls `Task._resolve_conditional(task.when, task_vars)`, the
+  same check `TaskExecutor` makes (same signature in 2.19, 2.21 and devel). It may only ever answer "skip"
+  when that's certain. Any exception, and any looped task, means "hold". A wrong "skip" for a task that then
+  runs would start it outside its slot; a wrong "hold" only costs time. Integration case 10 pins it.
 - The `OffsetScheduler` is a **class attribute** on purpose: Ansible builds a new strategy object for every
   `serial` batch, and per-instance state reset the gap at each batch boundary (caught in review 2026-10-27,
   pinned by integration case 7). Task `_uuid`s are stable across batches.

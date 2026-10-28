@@ -1,0 +1,35 @@
+# A task whose 'when' is already false is skipped without taking a start slot, so it can't delay anything.
+# Everything shares one key with a 1s gap: if skipped tasks took slots, the 12 + 4 skipped runs below would push
+# the real task's last start ~22s past 'begin'; without them it's ~7s.
+- hosts: probe_hosts
+  gather_facts: false
+  strategy: git_cgallagher.orchestration.time_offset
+  vars:
+    time_offset_seconds: 1
+    time_offset_key: shared
+    probe: "{{ ansible_playbook_python }} {{ playbook_dir }}/probe.py {{ probe_log }} {{ inventory_hostname }}"
+  tasks:
+    - name: Reference point, not offset
+      ansible.builtin.command: "{{ probe }} begin 0"
+      changed_when: false
+      vars:
+        time_offset_seconds: 0
+
+    - name: Always skipped
+      ansible.builtin.command: "{{ probe }} skipped 0"
+      changed_when: false
+      when: false
+
+    - name: Skipped by a templated condition
+      ansible.builtin.command: "{{ probe }} skipped 0"
+      changed_when: false
+      when: inventory_hostname == 'no-such-host'
+
+    - name: Runs on two hosts only
+      ansible.builtin.command: "{{ probe }} partial 0"
+      changed_when: false
+      when: inventory_hostname in ['probe1', 'probe2']
+
+    - name: Runs everywhere
+      ansible.builtin.command: "{{ probe }} real 0"
+      changed_when: false

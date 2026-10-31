@@ -286,6 +286,25 @@ The integration target runs playbooks against six local hosts. Each host records
 
 CI runs all three test types against ansible-core 2.19, 2.20, 2.21 and devel.
 
+### Molecule
+
+The Molecule scenario in `extensions/molecule/default/` runs the strategy against four containers reached over
+the `community.docker.docker` connection, so every task goes over a real remote connection rather than
+`connection: local`. It checks that starts are spaced by the gap while the hosts still overlap, that later tasks
+aren't delayed again, and that two tasks sharing a `time_offset_key` are spaced against each other. Molecule
+builds this checkout and installs it as `git_cgallagher.orchestration` first, so it tests the packaged
+collection. Run it from the repo root with Docker running (no `ansible_collections/` path needed):
+
+```bash
+pip install -r extensions/molecule/requirements.txt
+```
+
+```bash
+molecule test
+```
+
+It takes about a minute and runs in CI on the newest stable ansible-core.
+
 ## License
 
 GPL-3.0-or-later (see [LICENSE](LICENSE)). The plugin subclasses ansible-core's GPL-licensed `free`

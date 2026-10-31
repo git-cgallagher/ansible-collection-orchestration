@@ -1,0 +1,34 @@
+---
+# Runs the time_offset strategy against real hosts: four containers reached over the community.docker.docker
+# connection plugin. tests/integration covers the plugin's behavior case by case on local hosts; this scenario
+# checks the same spacing holds when every task goes over a real remote connection.
+driver:
+  name: docker
+platforms:
+  # python:*-slim is multi-arch, so Apple Silicon and amd64 runners both pull a native image.
+  - &probe
+    name: probe1
+    image: docker.io/library/python:3.13-slim
+    pre_build_image: true
+    command: sleep infinity
+  - <<: *probe
+    name: probe2
+  - <<: *probe
+    name: probe3
+  - <<: *probe
+    name: probe4
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      forks: 10
+# No idempotence step: every converge appends to the probe logs, and the tasks report no changes anyway.
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy

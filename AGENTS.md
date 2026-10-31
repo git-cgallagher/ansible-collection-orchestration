@@ -74,7 +74,10 @@ minute. It runs in the `molecule` CI job on the newest stable core. It is a seco
 it adds over `tests/integration` is real remote hosts and connection overhead, plus testing the built collection.
 Keep plugin behavior cases in `runme.sh`; add a Molecule check only for something a remote connection could change.
 Timings measured 2026-10-31 on Docker Desktop: every gap within 1.90–2.07s of the 2s setting; the verify window is
-1.4–2.6s. With `-e time_offset_seconds=0` all starts land within ms and verify fails (the negative control).
+1.4–2.6s. The `control` task (task-level `time_offset_seconds: 0`, run first, before spacing spreads the hosts) must
+collide (`--expect-collision 0.5`; measured spans ≤13ms), so a broken log merge or checker can't pass silently. Both
+directions were checked 2026-10-31: `-e time_offset_seconds=0` fails the spaced checks, and `-e time_offset_seconds=2`
+(extra vars beat task vars, so the control gets spaced) fails the control.
 - ⚠️ Molecule (ansible-compat) **builds the checkout and installs it into `~/.ansible/collections`**, overwriting any
   `git_cgallagher.orchestration` there, Galaxy installs included. That is how the scenario finds the collection
   without an `ansible_collections/` path, and why `extensions` must stay in `build_ignore`.

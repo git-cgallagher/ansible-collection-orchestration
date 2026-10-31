@@ -291,7 +291,8 @@ CI runs all three test types against ansible-core 2.19, 2.20, 2.21 and devel.
 The Molecule scenario in `extensions/molecule/default/` runs the strategy against four containers reached over
 the `community.docker.docker` connection, so every task goes over a real remote connection rather than
 `connection: local`. It checks that starts are spaced by the gap while the hosts still overlap, that later tasks
-aren't delayed again, and that two tasks sharing a `time_offset_key` are spaced against each other. Molecule
+aren't delayed again, and that two tasks sharing a `time_offset_key` are spaced against each other. A control
+task with the gap turned off must show colliding starts, which proves those checks can fail. Molecule
 builds this checkout and installs it as `git_cgallagher.orchestration` first, so it tests the packaged
 collection. Run it from the repo root with Docker running (no `ansible_collections/` path needed):
 

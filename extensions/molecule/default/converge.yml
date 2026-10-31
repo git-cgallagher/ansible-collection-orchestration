@@ -9,6 +9,15 @@
     time_offset_seconds: 2
     probe: python3 /tmp/probe.py /tmp/probe.log {{ inventory_hostname }}
   tasks:
+    # Control: with the gap turned off for this task, all hosts start together. It runs first, before any spacing
+    # has spread the hosts out. verify.yml asserts these starts collide, which proves the spacing checks on the
+    # other tasks can fail.
+    - name: Control task, no offset
+      ansible.builtin.command: "{{ probe }} control 0"
+      changed_when: false
+      vars:
+        time_offset_seconds: 0
+
     - name: First task, held open so hosts overlap
       ansible.builtin.command: "{{ probe }} first 5"
       changed_when: false

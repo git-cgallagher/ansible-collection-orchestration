@@ -30,6 +30,9 @@
       changed_when: false
       register: spacing
       loop:
+        # The control task had no offset, so its starts must collide (some gap under 0.5s). If they don't, the
+        # merged log or the checker is broken and the checks below would prove nothing.
+        - control --count 4 --expect-collision 0.5
         # Held 5s each, so a serial run would need 15s+ before the last start; spaced runs overlap.
         - first --count 4 --min-gap {{ min_gap }} --max-gap {{ max_gap }} --overlaps 5
         # Hosts are already spread out after the first task, so the second shouldn't add another round of delay: its

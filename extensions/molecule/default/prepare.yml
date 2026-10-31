@@ -1,0 +1,15 @@
+---
+- name: Install the probe and clear old start logs
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Copy probe.py from the integration tests
+      ansible.builtin.copy:
+        src: ../../../tests/integration/targets/time_offset/probe.py
+        dest: /tmp/probe.py
+        mode: '0644'
+
+    - name: Remove the start log from an earlier converge
+      ansible.builtin.file:
+        path: /tmp/probe.log
+        state: absent

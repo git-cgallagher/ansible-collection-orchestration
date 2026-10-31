@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Tests: a Molecule scenario (`extensions/molecule/default/`) runs the strategy against four containers over the
+  `community.docker.docker` connection, checking the gap, overlap, no extra delay on later tasks, and a shared
+  `time_offset_key`, on real remote hosts and against the built collection. It runs in CI as the `molecule` job.
+  Nothing in the collection package changes.
+
 ## 0.2.2 — 2026-10-28
 
 - Repo: documented the security settings. CodeQL scans both the Python code and the GitHub Actions workflows,

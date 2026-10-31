@@ -1,0 +1,30 @@
+---
+# Each probe task records when it really started on the container (probe.py writes time.time() to
+# /tmp/probe.log). Containers share the Docker host's clock, so verify.yml can compare starts across hosts.
+- name: Converge
+  hosts: all
+  gather_facts: false
+  strategy: git_cgallagher.orchestration.time_offset
+  vars:
+    time_offset_seconds: 2
+    probe: python3 /tmp/probe.py /tmp/probe.log {{ inventory_hostname }}
+  tasks:
+    - name: First task, held open so hosts overlap
+      ansible.builtin.command: "{{ probe }} first 5"
+      changed_when: false
+
+    - name: Second task, already spread out, so no extra delay
+      ansible.builtin.command: "{{ probe }} second 0"
+      changed_when: false
+
+    - name: Two different tasks sharing one queue of start slots
+      vars:
+        time_offset_key: shared-target
+      block:
+        - name: Task A on the shared target
+          ansible.builtin.command: "{{ probe }} keyed 0"
+          changed_when: false
+
+        - name: Task B on the shared target
+          ansible.builtin.command: "{{ probe }} keyed 0"
+          changed_when: false

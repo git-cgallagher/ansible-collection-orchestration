@@ -1,0 +1,7 @@
+# Python tools for the Molecule scenario (pip install -r extensions/molecule/requirements.txt).
+# Dependabot keeps the exact pins current. ansible-core follows the newest stable in the ansible-test matrix,
+# so bump that range by hand when the matrix moves on.
+ansible-core>=2.21,<2.22
+molecule==26.10.0
+molecule-plugins[docker]==26.10.12
+docker==7.2.0

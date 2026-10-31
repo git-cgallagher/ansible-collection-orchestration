@@ -1,0 +1,43 @@
+---
+- name: Collect the start logs
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Read this host's start log
+      ansible.builtin.slurp:
+        src: /tmp/probe.log
+      register: probe_log
+
+- name: Check the spacing
+  hosts: localhost
+  gather_facts: false
+  vars:
+    log_path: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/probe.log"
+    checker: "{{ ansible_playbook_python }} {{ playbook_dir }}/../../../tests/integration/targets/time_offset/check_starts.py"
+    # The gap is 2s. A start is recorded when probe.py starts on the container, a little after Ansible launches
+    # the task over docker exec, and that delay varies, so allow 0.6s either side.
+    min_gap: 1.4
+    max_gap: 2.6
+  tasks:
+    - name: Merge the logs from every host
+      ansible.builtin.copy:
+        dest: "{{ log_path }}"
+        content: "{{ groups['all'] | map('extract', hostvars, ['probe_log', 'content']) | map('b64decode') | join('') }}"
+        mode: '0644'
+
+    - name: Check the starts
+      ansible.builtin.command: "{{ checker }} {{ log_path }} {{ item }}"
+      changed_when: false
+      register: spacing
+      loop:
+        # Held 5s each, so a serial run would need 15s+ before the last start; spaced runs overlap.
+        - first --count 4 --min-gap {{ min_gap }} --max-gap {{ max_gap }} --overlaps 5
+        # Hosts are already spread out after the first task, so the second shouldn't add another round of delay: its
+        # last start comes within the 5s hold plus 1.5s of the last first-task start.
+        - second --count 4 --min-gap {{ min_gap }} --not-delayed-after first 6.5
+        # 4 hosts x 2 tasks through one key: all 8 starts are spaced against each other.
+        - keyed --count 8 --min-gap {{ min_gap }} --max-gap {{ max_gap }}
+
+    - name: Show the measured spacing
+      ansible.builtin.debug:
+        msg: "{{ spacing.results | map(attribute='stdout_lines') | flatten }}"

@@ -106,8 +106,8 @@ bump it publish nothing.
 
 ## Repo security (public repo)
 - `main` is protected by the ruleset **"main protection"**: changes go through a PR, force-push and deletion are
-  blocked, there's no bypass, and the 9 `stable-*` checks (`sanity|units|integration (stable-2.19|2.20|2.21)`)
-  are required. Devel checks (`sanity (devel, venv)`, `units (devel, venv)`, `integration (devel, venv)`) are **not** required: a red devel
+  blocked, there's no bypass, and 10 checks are required: the 9 `stable-*` checks
+  (`sanity|units|integration (stable-2.19|2.20|2.21)`) and `molecule` (added 2026-10-31, after it passed on PR 12). Devel checks (`sanity (devel, venv)`, `units (devel, venv)`, `integration (devel, venv)`) are **not** required: a red devel
   check is an early warning about upstream core, not a merge blocker. When the supported versions change,
   update the matrix, `meta/runtime.yml` **and** the ruleset's required checks together, or PRs block on
   checks that no longer run.
@@ -121,7 +121,7 @@ bump it publish nothing.
   (`Analyze (python)`, `Analyze (actions)`) are not required by the ruleset.
 - **Repo auto-merge is off** (`allow_auto_merge: false`, turned off 2026-10-28). It was switched on briefly
   to auto-merge PR 1, then turned off by owner decision: merges are done by hand once every check, devel
-  included, is green. Auto-merge would only wait for the 9 required checks.
+  included, is green. Auto-merge would only wait for the 10 required checks.
 - The devel job pip-installs an unpinned ansible-core tarball. That's acceptable because the workflow is
   `permissions: contents: read`, has no secrets and uses `pull_request`, not `pull_request_target`. Keep it
   that way.

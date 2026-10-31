@@ -6,6 +6,7 @@
   `community.docker.docker` connection, checking the gap, overlap, no extra delay on later tasks, and a shared
   `time_offset_key`, on real remote hosts and against the built collection. It runs in CI as the `molecule` job.
   Nothing in the collection package changes.
+- Repo: `molecule` is now a required check in the "main protection" ruleset (10 required checks).
 
 ## 0.2.2 — 2026-10-28
 

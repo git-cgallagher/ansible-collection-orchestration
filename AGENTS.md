@@ -127,6 +127,9 @@ bump it publish nothing.
   checks that no longer run.
 - Actions are pinned to commit SHAs with a version comment; `.github/dependabot.yml` bumps them monthly.
   Never replace a pin with a tag.
+- Every CI job sets `timeout-minutes` (2026-11-01): GitHub's default is 6 hours, and a stalled install would
+  hold the runner that long. 15 minutes for each job (30 for `molecule`, whose step keeps its own 15), several
+  times their slowest green run. A new job needs one too.
 - Secret scanning, push protection, Dependabot alerts and security updates, and private vulnerability
   reporting are on (`SECURITY.md`).
 - **CodeQL** default setup is on (since 2026-10-28) for **`python` and `actions`**, with the default query suite.

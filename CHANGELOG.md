@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CI: every job has a `timeout-minutes` (15, or 30 for `molecule`), so a stalled install fails within minutes
+  instead of holding a runner for GitHub's 6-hour default. Nothing in the collection package changes.
 - Tests: a Molecule scenario (`extensions/molecule/default/`) runs the strategy against four containers over the
   `community.docker.docker` connection, checking the gap, overlap, no extra delay on later tasks, and a shared
   `time_offset_key`, on real remote hosts and against the built collection. It runs in CI as the `molecule` job.

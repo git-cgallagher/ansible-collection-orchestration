@@ -15,7 +15,8 @@ rules.
 - `tests/unit/` — scheduler tests with a fake clock.
 - `tests/integration/targets/time_offset/` — `runme.sh` drives playbooks against six `connection: local`
   hosts; `probe.py` logs real start times and `check_starts.py` asserts on them.
-- `extensions/molecule/default/`: the Molecule scenario. Four `python:3.13-slim` containers over the
+- `extensions/molecule/default/`: the Molecule scenario. Four `python:3.13-slim` containers, created by the
+  shared `molecule-git-cgallagher` driver (git-cgallagher/ansible-collection-molecule) and reached over the
   `community.docker.docker` connection; `prepare.yml` copies the integration target's `probe.py` onto each
   host, and `verify.yml` merges the hosts' start logs and runs the same `check_starts.py`. Pins live in
   `extensions/molecule/requirements.txt` (Dependabot `pip`, ansible-core ignored) and `collections.yml`.
@@ -69,8 +70,14 @@ failed a 0.85s floor with a 0.776s gap, on devel, 2026-10-27. All 1s-gap checks 
 `runme.sh`. If CI flakes, widen the tolerance; don't drop the assertion.
 
 ### Molecule
-`molecule test` from the repo root (Docker running, `pip install -r extensions/molecule/requirements.txt`); about a
-minute. It runs in the `molecule` CI job on the newest stable core. It is a second harness over the same plugin: what
+`molecule test` from the repo root (Docker running), after:
+
+```bash
+pip install -c extensions/molecule/requirements.txt ansible-core molecule \
+  "molecule-git-cgallagher @ git+https://github.com/git-cgallagher/ansible-collection-molecule@v0.2.0"
+```
+
+About a minute. It runs in the `molecule` CI job on the newest stable core. It is a second harness over the same plugin: what
 it adds over `tests/integration` is real remote hosts and connection overhead, plus testing the built collection.
 Keep plugin behavior cases in `runme.sh`; add a Molecule check only for something a remote connection could change.
 Timings measured 2026-10-31 on Docker Desktop: every gap within 1.90–2.07s of the 2s setting; the verify window is
@@ -86,6 +93,10 @@ directions were checked 2026-10-31: `-e time_offset_seconds=0` fails the spaced 
 - ⚠️ `molecule --version` (and every command) shells out to `ansible-config`, so the venv's `bin/` must be on `PATH`
   or it crashes with `FileNotFoundError: 'ansible-config'`.
 - There is no idempotence step: each converge appends to the probe logs, and `prepare.yml` clears them.
+- The scenario's platforms are names only: the driver's docker kind takes the image from
+  `driver.options.platform_defaults` and runs `sleep infinity`, and fails on any platform key it doesn't know
+  (molecule-plugins' key names; list in the driver's README). CI installs everything with the driver's
+  `setup-molecule` action, pinned by SHA (Dependabot bumps it), with `requirements.txt` as pip constraints.
 
 ## Releasing
 **Galaxy follows `main` automatically** (`.github/workflows/galaxy-publish.yml`). On every push to `main` it asks

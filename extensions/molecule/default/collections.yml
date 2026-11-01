@@ -1,5 +1,6 @@
 ---
-# The docker driver creates the containers, and the community.docker.docker connection plugin reaches them.
+# The molecule-git-cgallagher driver creates the containers, and the community.docker.docker connection plugin
+# reaches them.
 collections:
   - name: community.docker
     version: '>=5.0.0,<6.0.0'

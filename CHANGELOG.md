@@ -9,6 +9,10 @@
 - Tests: the Molecule scenario has a negative control. A task with the gap turned off must show colliding starts,
   so the spacing checks are proven able to fail on every run.
 - Repo: `molecule` is now a required check in the "main protection" ruleset (10 required checks).
+- Tests: the Molecule scenario runs on the shared `molecule-git-cgallagher` driver
+  ([git_cgallagher.molecule](https://github.com/git-cgallagher/ansible-collection-molecule) 0.2.0) instead of
+  molecule-plugins' docker driver, so the scenario is four platform names plus the image, and CI installs it
+  with the driver's `setup-molecule` action. `molecule-plugins` and the `docker` SDK are no longer pinned.
 
 ## 0.2.2 — 2026-10-28
 

@@ -236,7 +236,7 @@ more. Set the gap comfortably larger than that variation.
 - **Whatever `free` doesn't support isn't supported here either:** `run_once`, `any_errors_fatal`,
   `max_fail_percentage`, and modules that bypass the host loop (such as `pause`).
 - **It relies on ansible-core strategy internals** (`_queue_task`, `_process_pending_results`,
-  `_blocked_hosts`, `Task._resolve_conditional`). Every PR is also tested against ansible-core `devel` to catch upstream changes early.
+  `_blocked_hosts`, `Task._resolve_conditional`). CI tests every supported ansible-core release, so check a new release before relying on it.
 
 ## Releasing
 
@@ -284,7 +284,7 @@ The integration target runs playbooks against six local hosts. Each host records
   queues, and with no key those starts collide (the control case);
 - bad values fail with a clear message.
 
-CI runs all three test types against ansible-core 2.19, 2.20, 2.21 and devel.
+CI runs all three test types against ansible-core 2.19, 2.20 and 2.21.
 
 ### Molecule
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CI: ansible-core `devel` is no longer tested; the `devel-venv` sanity/units/integration jobs are gone
+  (owner decision). CI covers ansible-core 2.19–2.21. Nothing in the collection package changes.
 - CI: every job has a `timeout-minutes` (15, or 30 for `molecule`), so a stalled install fails within minutes
   instead of holding a runner for GitHub's 6-hour default. Nothing in the collection package changes.
 - Tests: a Molecule scenario (`extensions/molecule/default/`) runs the strategy against four containers over the

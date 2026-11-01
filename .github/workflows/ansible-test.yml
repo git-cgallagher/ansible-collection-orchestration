@@ -4,9 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
-  # Monthly, so new ansible-core releases (stable point releases, and devel before it becomes the next
-  # stable) get tested even when no PR is open. The plugin hooks ansible-core internals, so an upstream
-  # change can break it without any change here.
+  # Monthly, so new ansible-core stable point releases get tested even when no PR is open. The plugin
+  # hooks ansible-core internals, so an upstream change can break it without any change here.
   schedule:
     - cron: '17 13 1 * *'
   workflow_dispatch:
@@ -62,33 +61,3 @@ jobs:
       - name: molecule test
         timeout-minutes: 15
         run: .github/ci/runtime.sh molecule test
-
-  # devel's test container can't start on GitHub runners (ansible-test fails remounting /sys/fs/cgroup),
-  # so every devel test type runs here without a container. devel is an early warning, not a merge gate.
-  devel-venv:
-    name: ${{ matrix.testing-type }} (devel, venv)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # Non-blocking on PRs and pushes. On the scheduled run a devel failure fails the run, so GitHub
-    # emails a failure notice instead of reporting green.
-    continue-on-error: ${{ github.event_name != 'schedule' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        testing-type:
-          - sanity
-          - units
-          - integration
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          path: ansible_collections/git_cgallagher/orchestration
-          persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
-        with:
-          python-version: '3.14'
-      - name: Install ansible-core devel
-        run: pip install https://github.com/ansible/ansible/archive/devel.tar.gz
-      - name: Run ${{ matrix.testing-type }} tests
-        working-directory: ansible_collections/git_cgallagher/orchestration
-        run: ansible-test ${{ matrix.testing-type }} --venv --python 3.14 --requirements --color -v

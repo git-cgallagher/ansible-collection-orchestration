@@ -299,7 +299,9 @@ builds this checkout and installs it as `git_cgallagher.orchestration` first, so
 collection. Run it from the repo root with Docker running (no `ansible_collections/` path needed):
 
 ```bash
-pip install -c extensions/molecule/requirements.txt ansible-core molecule \
+export RUNTIME_IMAGE=$(sed -n 's/^ *RUNTIME_IMAGE: //p' .github/workflows/ansible-test.yml)
+docker run --rm "$RUNTIME_IMAGE" cat /usr/share/ansible-runtime/constraints.txt > /tmp/constraints.txt
+pip install -c /tmp/constraints.txt ansible-core molecule \
   "molecule-git-cgallagher @ git+https://github.com/git-cgallagher/ansible-collection-molecule@v0.2.0"
 ```
 

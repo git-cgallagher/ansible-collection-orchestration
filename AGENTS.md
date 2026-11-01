@@ -18,8 +18,8 @@ rules.
 - `extensions/molecule/default/`: the Molecule scenario. Four `python:3.13-slim` containers, created by the
   shared `molecule-git-cgallagher` driver (git-cgallagher/ansible-collection-molecule) and reached over the
   `community.docker.docker` connection; `prepare.yml` copies the integration target's `probe.py` onto each
-  host, and `verify.yml` merges the hosts' start logs and runs the same `check_starts.py`. Pins live in
-  `extensions/molecule/requirements.txt` (Dependabot `pip`, ansible-core ignored) and `collections.yml`.
+  host, and `verify.yml` merges the hosts' start logs and runs the same `check_starts.py`. Tool versions come
+  from the ansible-runtime image (`RUNTIME_IMAGE`); `collections.yml` declares the range it needs.
   `extensions` is in `galaxy.yml` `build_ignore`.
 - `meta/runtime.yml` `requires_ansible` and the CI matrix in `.github/workflows/ansible-test.yml` must
   cover the same versions.
@@ -81,7 +81,9 @@ export RUNTIME_IMAGE=$(sed -n 's/^ *RUNTIME_IMAGE: //p' .github/workflows/ansibl
 Or with your own tools:
 
 ```bash
-pip install -c extensions/molecule/requirements.txt ansible-core molecule \
+export RUNTIME_IMAGE=$(sed -n 's/^ *RUNTIME_IMAGE: //p' .github/workflows/ansible-test.yml)
+docker run --rm "$RUNTIME_IMAGE" cat /usr/share/ansible-runtime/constraints.txt > /tmp/constraints.txt
+pip install -c /tmp/constraints.txt ansible-core molecule \
   "molecule-git-cgallagher @ git+https://github.com/git-cgallagher/ansible-collection-molecule@v0.2.0"
 ```
 
@@ -108,8 +110,10 @@ directions were checked 2026-10-31: `-e time_offset_seconds=0` fails the spaced 
   (`docker run` with the checkout at the same path, the runner's network and Docker socket), and installs
   nothing. Bump `RUNTIME_IMAGE`'s tag and digest together, to an ansible-runtime release. The image is root, so
   "`~/.ansible/collections`" above is `/root/.ansible/collections` inside a throwaway container: nothing
-  persists. `extensions/molecule/requirements.txt` now only serves local installs; keep it at the image's
-  versions.
+  persists. Every tool version comes from `RUNTIME_IMAGE` (ansible-runtime's shared dependency model,
+  ansible-runtime#8): `galaxy-publish.yml` and local installs read the image's
+  `/usr/share/ansible-runtime/constraints.txt`. No file here pins a version
+  (`extensions/molecule/requirements.txt` was removed 2026-11-01).
 
 ## Releasing
 **Galaxy follows `main` automatically** (`.github/workflows/galaxy-publish.yml`). On every push to `main` it asks

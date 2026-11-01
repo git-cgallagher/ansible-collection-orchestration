@@ -45,11 +45,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+      # Python, ansible-core, Molecule and the shared molecule-git-cgallagher driver, at the versions
+      # extensions/molecule/requirements.txt pins (the driver itself comes from the action's pinned commit).
+      - uses: git-cgallagher/ansible-collection-molecule/.github/actions/setup-molecule@b2601b3f376da3e03f99c18ebc79d9d7a37e9c7f  # v0.2.0
         with:
-          python-version: '3.13'
-      - name: Install Molecule
-        run: pip install -r extensions/molecule/requirements.txt
+          constraints: extensions/molecule/requirements.txt
       # Molecule builds this checkout and installs it as git_cgallagher.orchestration, so the scenario tests the
       # packaged collection. A run that never releases a host hangs instead of failing, hence the timeout.
       - name: molecule test

@@ -1,7 +1,9 @@
-# Python tools for the Molecule scenario (pip install -r extensions/molecule/requirements.txt).
+# Version pins for the Molecule scenario's Python tools, used as pip constraints: CI's molecule job passes this
+# file to the setup-molecule action, which installs ansible-core, Molecule and the molecule-git-cgallagher
+# driver (the driver's version comes from the action's pinned commit, so it isn't here). Locally:
+#   pip install -c extensions/molecule/requirements.txt ansible-core molecule \
+#     "molecule-git-cgallagher @ git+https://github.com/git-cgallagher/ansible-collection-molecule@v0.2.0"
 # Dependabot keeps the exact pins current. ansible-core follows the newest stable in the ansible-test matrix,
 # so bump that range by hand when the matrix moves on.
 ansible-core>=2.21,<2.22
 molecule==26.10.0
-molecule-plugins[docker]==26.10.12
-docker==7.2.0

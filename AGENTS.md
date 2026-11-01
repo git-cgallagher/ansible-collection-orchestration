@@ -70,7 +70,16 @@ failed a 0.85s floor with a 0.776s gap, on devel, 2026-10-27. All 1s-gap checks 
 `runme.sh`. If CI flakes, widen the tolerance; don't drop the assertion.
 
 ### Molecule
-`molecule test` from the repo root (Docker running), after:
+`molecule test` from the repo root (Docker running). Exactly as CI runs it, in the ansible-runtime image
+(pinned ansible-core, Molecule, the driver and community.docker; tag + digest in `ansible-test.yml`'s
+`RUNTIME_IMAGE`):
+
+```bash
+export RUNTIME_IMAGE=$(sed -n 's/^ *RUNTIME_IMAGE: //p' .github/workflows/ansible-test.yml)
+.github/ci/runtime.sh molecule test
+```
+
+Or with your own tools:
 
 ```bash
 pip install -c extensions/molecule/requirements.txt ansible-core molecule \
@@ -95,8 +104,13 @@ directions were checked 2026-10-31: `-e time_offset_seconds=0` fails the spaced 
 - There is no idempotence step: each converge appends to the probe logs, and `prepare.yml` clears them.
 - The scenario's platforms are names only: the driver's docker kind takes the image from
   `driver.options.platform_defaults` and runs `sleep infinity`, and fails on any platform key it doesn't know
-  (molecule-plugins' key names; list in the driver's README). CI installs everything with the driver's
-  `setup-molecule` action, pinned by SHA (Dependabot bumps it), with `requirements.txt` as pip constraints.
+  (molecule-plugins' key names; list in the driver's README).
+- CI's `molecule` job runs in the ansible-runtime image (since 2026-11-01), through `.github/ci/runtime.sh`
+  (`docker run` with the checkout at the same path, the runner's network and Docker socket), and installs
+  nothing. Bump `RUNTIME_IMAGE`'s tag and digest together, to an ansible-runtime release. The image is root, so
+  "`~/.ansible/collections`" above is `/root/.ansible/collections` inside a throwaway container: nothing
+  persists. `extensions/molecule/requirements.txt` now only serves local installs; keep it at the image's
+  versions.
 
 ## Releasing
 **Galaxy follows `main` automatically** (`.github/workflows/galaxy-publish.yml`). On every push to `main` it asks

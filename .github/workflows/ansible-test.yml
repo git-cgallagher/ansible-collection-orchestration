@@ -14,6 +14,13 @@ on:
 permissions:
   contents: read
 
+# The Molecule job runs in the ansible-runtime image (.github/ci/runtime.sh): pinned
+# ansible-core, Molecule, the molecule-git-cgallagher driver and community.docker, so it
+# installs nothing. Bump the tag AND digest together, to an ansible-runtime release. The
+# ansible-test matrix installs its own ansible-core per version.
+env:
+  RUNTIME_IMAGE: ghcr.io/git-cgallagher/ansible-runtime:0.2.0-ci@sha256:9f36cb0ddd49251df1eef32142f08176018fe91c10a1c2f2a15dd5442b3bc572
+
 # Every job sets timeout-minutes: GitHub's default is 6 hours, and a stalled
 # install or image pull would hold the runner that long. Each limit is several
 # times the job's slowest green run (2026-11-01).
@@ -50,16 +57,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      # Python, ansible-core, Molecule and the shared molecule-git-cgallagher driver, at the versions
-      # extensions/molecule/requirements.txt pins (the driver itself comes from the action's pinned commit).
-      - uses: git-cgallagher/ansible-collection-molecule/.github/actions/setup-molecule@b2601b3f376da3e03f99c18ebc79d9d7a37e9c7f  # v0.2.0
-        with:
-          constraints: extensions/molecule/requirements.txt
       # Molecule builds this checkout and installs it as git_cgallagher.orchestration, so the scenario tests the
       # packaged collection. A run that never releases a host hangs instead of failing, hence the timeout.
       - name: molecule test
         timeout-minutes: 15
-        run: molecule test
+        run: .github/ci/runtime.sh molecule test
 
   # devel's test container can't start on GitHub runners (ansible-test fails remounting /sys/fs/cgroup),
   # so every devel test type runs here without a container. devel is an early warning, not a merge gate.

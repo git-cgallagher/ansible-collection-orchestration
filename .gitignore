@@ -3,3 +3,4 @@ tests/output/
 __pycache__/
 *.pyc
 .venv/
+.cache/

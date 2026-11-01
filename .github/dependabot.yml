@@ -1,5 +1,6 @@
 # Keeps the SHA-pinned actions in .github/workflows current (Dependabot updates the SHA and the version
-# comment together), and the Molecule scenario's pip pins in extensions/molecule/requirements.txt.
+# comment together). No pip ecosystem: every tool version comes from the ansible-runtime image
+# (RUNTIME_IMAGE in ansible-test.yml), whose Renovate bumps them.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -8,14 +9,4 @@ updates:
       interval: monthly
     groups:
       actions:
-        patterns: ['*']
-  - package-ecosystem: pip
-    directory: /extensions/molecule
-    schedule:
-      interval: monthly
-    # ansible-core tracks the ansible-test matrix, which moves by hand.
-    ignore:
-      - dependency-name: ansible-core
-    groups:
-      molecule:
         patterns: ['*']

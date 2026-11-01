@@ -16,9 +16,13 @@ concurrency:
   group: galaxy-publish
   cancel-in-progress: false
 
+# Every job sets timeout-minutes: GitHub's default is 6 hours, and a stalled
+# install or image pull would hold the runner that long. Each limit is several
+# times the job's slowest green run (2026-11-01).
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # The Galaxy token is an environment secret, so only this job, on main, can read it.
     environment: galaxy
     permissions:

@@ -14,10 +14,14 @@ on:
 permissions:
   contents: read
 
+# Every job sets timeout-minutes: GitHub's default is 6 hours, and a stalled
+# install or image pull would hold the runner that long. Each limit is several
+# times the job's slowest green run (2026-11-01).
 jobs:
   test:
     name: ${{ matrix.testing-type }} (${{ matrix.ansible-core-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -41,6 +45,7 @@ jobs:
   molecule:
     name: molecule
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -61,6 +66,7 @@ jobs:
   devel-venv:
     name: ${{ matrix.testing-type }} (devel, venv)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Non-blocking on PRs and pushes. On the scheduled run a devel failure fails the run, so GitHub
     # emails a failure notice instead of reporting green.
     continue-on-error: ${{ github.event_name != 'schedule' }}
